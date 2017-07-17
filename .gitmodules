@@ -1,0 +1,3 @@
+[submodule "Laby"]
+	path = Laby
+	url = https://github.com/algoprog/Laby.git
