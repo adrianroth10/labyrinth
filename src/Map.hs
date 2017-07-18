@@ -1,4 +1,6 @@
-module Map where
+module Map (Map (Map),
+            Tile (Free, Start, End, Wall, Event),
+            parseMap) where
 
 import Parser
 
