@@ -1,2 +1,7 @@
-main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+import Test.HUnit
+import qualified MapSpec 
+
+tests = TestList [TestLabel "MapTests" MapSpec.tests]
+
+main :: IO Counts
+main = runTestTT tests
