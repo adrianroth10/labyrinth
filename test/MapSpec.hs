@@ -10,18 +10,14 @@ tests = TestList [TestLabel "tile" testtile,
                   TestLabel "parseMap" testparseMap]
 
 --testing tile
-testtile = TestList [testtile1,
-                     testtile2,
-                     testtile3,
-                     testtile4,
-                     testtile5,
-                     testtile6]
-testtile1 = TestCase $ assertEqual "Free" Free (tile 0)
-testtile2 = TestCase $ assertEqual "Start" Start (tile 1)
-testtile3 = TestCase $ assertEqual "End" End (tile 2)
-testtile4 = TestCase $ assertEqual "Wall" Wall (tile 3)
-testtile5 = TestCase $ assertEqual "Event 1" (Event 1) (tile 4)
-testtile6 = TestCase $ assertEqual "Event 2" (Event 2) (tile 5)
+testtile = TestList [testtileH "Free" 0 Free ,
+                     testtileH "Start" 1 Start ,
+                     testtileH "End" 2 End ,
+                     testtileH "Wall" 3 Wall ,
+                     testtileH "Event 1" 4 (Event 1),
+                     testtileH "Event 2" 5 (Event 2)]
+testtileH ref dataIn dataOut =
+                        TestCase $ assertEqual ref dataOut (tile dataIn)
 
 --testing prepend
 prependIn = (3, [Free, End, Free, Event 1])
@@ -45,10 +41,22 @@ testmatrixify = TestCase $ assertEqual "matrixify just"
                                        (matrixify matrixifyIn)
 
 --testing parseMap
-parseMapIn = "3\n3\n0 1 2\n3 4 5\n6 7 8"
-parseMapOut = Just $ Map [[Free, Start, End],
+testparseMap = TestList
+                    [testparseMapH "just 1" parseMapIn1 parseMapOut1,
+                     testparseMapH "just 2" parseMapIn2 parseMapOut2,
+                     testparseMapH "nothing 1" parseMapIn3 parseMapOut3,
+                     testparseMapH "nothing 2" parseMapIn4 parseMapOut4]
+testparseMapH ref dataIn dataOut =
+                    TestCase $ assertEqual ref dataOut (parseMap dataIn)
+parseMapIn1 = "3\n3\n0 1 2\n3 4 5\n6 7 8"
+parseMapOut1 = Just $ Map [[Free, Start, End],
                     [Wall, Event 1, Event 2],
                     [Event 3, Event 4, Event 5]]
-testparseMap = TestCase $ assertEqual "parseMap"
-                                       parseMapOut
-                                       (parseMap parseMapIn)
+parseMapIn2 = "3\n3\n0 1 2\n3 4 5\n6 7 8\n Hej hej hallo"
+parseMapOut2 = Just $ Map [[Free, Start, End],
+                    [Wall, Event 1, Event 2],
+                    [Event 3, Event 4, Event 5]]
+parseMapIn3 = "3\n3\n0 1 i\n3 4 5\n6 7 8"
+parseMapOut3 = Nothing
+parseMapIn4 = "3\n4\n0 1 2\n3 4 5\n6 7 8"
+parseMapOut4 = Nothing

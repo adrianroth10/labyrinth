@@ -5,6 +5,7 @@ import Parser
 data Map = Map [[Tile]] deriving (Eq, Show)
 data Tile = Free | Start | End | Wall | Event Int deriving (Eq, Show)
 
+------------Parsing---------------------
 parseMap :: String -> Maybe Map
 parseMap = matrixify . (number # number # content)
 
@@ -31,3 +32,4 @@ tile 1 = Start
 tile 2 = End
 tile 3 = Wall
 tile n = Event $ fromInteger $ n - 3
+----------------------------------------
