@@ -2,6 +2,7 @@ module Main where
 
 import Map
 import System.IO
+import Graphics
 
 mapFile = "maps/l1.txt"
 
@@ -14,3 +15,8 @@ main = do
                           (parseMap contents)
           putStrLn $ show map
           hClose handle
+
+          canvasElem <- mkCanvas
+          flip appendChild canvasElem documentBody
+          Just canvas <- fromElem canvasElem
+          renderState canvas 
