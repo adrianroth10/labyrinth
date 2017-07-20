@@ -10,18 +10,23 @@ import Haste.Graphics.Canvas
 width, height :: Double
 radius :: Double -> Double
 size :: Double -> Point
-width = 500
-height = 500
+width = 512
+height = 512
 radius = (/) (width / 2)
 size blocks = (width / blocks, height / blocks)
 
---x :: Double -> [Point]
+displacements :: Double -> [Point]
+displacements blocks = [(x, y) | y <- [0..(blocks - 1)], x <- [0..(blocks - 1)]]
 
-black, gray, blue, red :: Picture () -> Picture () 
+points :: Double -> [Point]
+points blocks = map (pointMul (size blocks)) (displacements blocks)
+
+black, red, yellow, green, blue :: Picture () -> Picture () 
 black = color (RGB 0 0 0)
-gray = color (RGB 127 127 127)
-blue = color (RGB 0 0 255)
 red = color (RGB 255 0 0)
+yellow = color (RGB 255 255 0)
+green = color (RGB 0 255 0)
+blue = color (RGB 0 0 255)
 
 mkCanvas :: IO Elem
 mkCanvas = do
@@ -37,18 +42,23 @@ mkCanvas = do
 renderState :: Canvas -> Double -> Map -> IO ()
 renderState canvas = ((.) (render canvas)) . gamePicture
 
+--unMatrixify :: [[a]] -> [a]
+--unMatrixify = foldl1 (++)
+
 gamePicture :: Double -> Map -> Picture ()
-gamePicture blocks map = do 
-  drawTile Start (0, 0) blocks
-  drawTile End (10, 10) blocks
-  drawTile Wall (20, 20) blocks
-  drawTile (Event 1) (100, 100) blocks
+gamePicture blocks m = drawTiles (foldl1 (++) m) (points blocks) blocks
+
+drawTiles :: [Tile] -> [Point] -> Double -> Picture ()
+drawTiles [] _ _ = return ()
+drawTiles (t:ts) (p:ps) blocks = drawTile Start (0, 0) 4
+  --drawTile t p blocks
+  --drawTiles ts ps blocks
 
 drawTile :: Tile -> Point -> Double -> Picture ()
-drawTile Start = drawRect red
-drawTile End = drawRect blue
+drawTile Start = drawCircle yellow
+drawTile End = drawCircle green
 drawTile Wall = drawRect black
-drawTile (Event _) = drawCircle gray
+drawTile (Event _) = drawCircle red
 
 drawRect, drawCircle :: (Picture () -> Picture ()) ->
                         Point ->
