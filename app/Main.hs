@@ -8,15 +8,15 @@ mapFile = "maps/l1.txt"
 
 main :: IO ()
 main = do
-          handle <- openFile mapFile ReadMode
-          contents <- hGetContents handle
-          let map = maybe (error "map parsing error")
-                          id
-                          (parseMap contents)
-          putStrLn $ show map
-          hClose handle
+          --handle <- openFile mapFile ReadMode
+          --contents <- hGetContents handle
+          --let map = maybe (error "map parsing error")
+          --                id
+          --                (parseMap contents)
+          --putStrLn $ show map
+          --hClose handle
 
           canvasElem <- mkCanvas
-          flip appendChild canvasElem documentBody
+          appendChild documentBody canvasElem
           Just canvas <- fromElem canvasElem
-          renderState canvas 
+          renderState canvas 4 (Map [])

@@ -1,16 +1,25 @@
-VPATH = app/ src/
+VPATH = app/ src/ test/
 
 .PHONY: all run clean
 MAIN = Main.hs
 MODULES = Map.hs Graphics.hs CoreParser.hs Parser.hs
 
-all: bin/labyrinth.html run
+all: run
 
 bin/labyrinth.html: $(MAIN) $(MODULES)
 	hastec --output-html --outdir=bin/ -o $@ $^
 
-run: labyrinth.html
-	firefox --new-tab bin/labyrinth.html
+run: bin/labyrinth.html
+	firefox --new-tab $<
+
+test: stackTest bin/graphicsSpec.html
+
+stackTest:
+	stack test
+
+bin/graphicsSpec.html: GraphicsSpec.hs $(MODULES)
+	hastec --output-html --outdir=bin/ -o $@ $^
+	firefox --new-tab $@
 
 clean:
 	rm -r bin/*.jsmod bin/labyrinth.html

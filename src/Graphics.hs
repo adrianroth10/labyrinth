@@ -1,25 +1,26 @@
 module Graphics (mkCanvas, renderState, appendChild, documentBody, fromElem) where
 
+import Map
+
 import Haste
 import Haste.DOM
 import Haste.Graphics.Canvas
-import Data.IORef
 
 --Constants
-width, height, blocks :: Double
-size :: Point
-blocks = 4
+width, height :: Double
+radius :: Double -> Double
+size :: Double -> Point
 width = 500
 height = 500
-size = (width / blocks, height / blocks)
+radius = (/) (width / 2)
+size blocks = (width / blocks, height / blocks)
 
-white :: Picture () -> Picture () 
-white = color (RGB 255 255 255)
-gray :: Picture () -> Picture () 
+--x :: Double -> [Point]
+
+black, gray, blue, red :: Picture () -> Picture () 
+black = color (RGB 0 0 0)
 gray = color (RGB 127 127 127)
-blue :: Picture () -> Picture () 
 blue = color (RGB 0 0 255)
-red :: Picture () -> Picture () 
 red = color (RGB 255 0 0)
 
 mkCanvas :: IO Elem
@@ -30,23 +31,35 @@ mkCanvas = do
   setStyle canvas "display" "block"
   setStyle canvas "border" "1px solid black"
   setStyle canvas "margin" "0px auto 0 auto"
-  setStyle canvas "backgroundColor" "black"
+  setStyle canvas "backgroundColor" "white"
   return canvas
 
-renderState :: Canvas -> IO ()
-renderState canvas = render canvas gamePicture 
+renderState :: Canvas -> Double -> Map -> IO ()
+renderState canvas = ((.) (render canvas)) . gamePicture
 
-gamePicture :: Picture ()
-gamePicture = drawStart (0, 0)
+gamePicture :: Double -> Map -> Picture ()
+gamePicture blocks map = do 
+  drawTile Start (0, 0) blocks
+  drawTile End (10, 10) blocks
+  drawTile Wall (20, 20) blocks
+  drawTile (Event 1) (100, 100) blocks
 
-drawStart  :: Point -> Picture ()
-drawStart pt = red $ do
-  fill $ rect pt (pointMove pt size)
+drawTile :: Tile -> Point -> Double -> Picture ()
+drawTile Start = drawRect red
+drawTile End = drawRect blue
+drawTile Wall = drawRect black
+drawTile (Event _) = drawCircle gray
 
---drawEnd  :: Point -> Picture ()
---drawWall  :: Point -> Picture ()
---drawEvent  :: Point -> Picture ()
+drawRect, drawCircle :: (Picture () -> Picture ()) ->
+                        Point ->
+                        Double ->
+                        Picture ()
+drawRect c pt blocks = c $ fill $ rect pt (pointAdd pt (size blocks))
+drawCircle c pt blocks = c $ fill $ circle (pointAdd pt (pointMul (0.5, 0.5) (size blocks))) (radius blocks)
 
---rewrite pointfree?
-pointMove :: Point -> Point -> Point
-pointMove (x1, y1) (x2, y2) = (x1 + x2, y1 + y2)
+--Pointstuff
+map2 :: (a -> b -> c) -> (a, a) -> (b, b) -> (c, c)
+map2 f (x1, y1) (x2, y2) = (f x1 x2, f y1 y2)
+pointAdd, pointMul :: Point -> Point -> Point
+pointAdd = map2 (+)
+pointMul = map2 (*)
