@@ -1,6 +1,6 @@
 VPATH = app/ src/ test/
 
-.PHONY: all run clean
+.PHONY: all run test stackTest clean
 MAIN = Main.hs
 MODULES = Map.hs Graphics.hs CoreParser.hs Parser.hs
 

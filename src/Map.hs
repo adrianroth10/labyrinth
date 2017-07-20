@@ -1,11 +1,11 @@
-module Map (Map (Map),
+module Map (Map,
             Tile (Free, Start, End, Wall, Event),
             parseMap) where
 
 import Parser
 
 --change to type?
-data Map = Map [[Tile]] deriving (Eq, Show)
+type Map = [[Tile]]
 data Tile = Free | Start | End | Wall | Event Int deriving (Eq, Show)
 
 ------------Parsing---------------------
@@ -21,7 +21,7 @@ matrixify :: Maybe (((Integer, Integer), [Tile]), String) -> Maybe Map
 matrixify Nothing = Nothing
 matrixify (Just (((r, c), xs), s))
   | fromInteger (r * c) == length xs =
-                            Just $ Map $ matrixify' (fromInteger c) xs
+                            Just $ matrixify' (fromInteger c) xs
   | otherwise = Nothing
 
 content :: Parser [Tile]

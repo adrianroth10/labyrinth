@@ -19,4 +19,4 @@ main = do
           canvasElem <- mkCanvas
           appendChild documentBody canvasElem
           Just canvas <- fromElem canvasElem
-          renderState canvas 4 (Map [])
+          renderState canvas 4 []

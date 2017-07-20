@@ -15,13 +15,13 @@ testparseMapH ref dataIn dataOut =
                    TestCase $ assertEqual ref dataOut (parseMap dataIn)
 
 parseMapIn1 = "3\n3\n0 1 2\n3 4 5\n6 7 8"
-parseMapOut1 = Just $ Map [[Free, Start, End],
-                           [Wall, Event 1, Event 2],
-                           [Event 3, Event 4, Event 5]]
+parseMapOut1 = Just $ [[Free, Start, End],
+                       [Wall, Event 1, Event 2],
+                       [Event 3, Event 4, Event 5]]
 parseMapIn2 = "3\n3\n0 1 2\n3 4 5\n6 7 8\n Hej hej hallo"
-parseMapOut2 = Just $ Map [[Free, Start, End],
-                           [Wall, Event 1, Event 2],
-                           [Event 3, Event 4, Event 5]]
+parseMapOut2 = Just $ [[Free, Start, End],
+                       [Wall, Event 1, Event 2],
+                       [Event 3, Event 4, Event 5]]
 parseMapIn3 = "3\n3\n0 1 i\n3 4 5\n6 7 8"
 parseMapOut3 = Nothing
 parseMapIn4 = "3\n4\n0 1 2\n3 4 5\n6 7 8"
