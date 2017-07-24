@@ -50,7 +50,7 @@ gamePicture blocks m = drawTiles (foldl1 (++) m) (points blocks) blocks
 
 drawTiles :: [Tile] -> [Point] -> Double -> Picture ()
 drawTiles [] _ _ = return ()
-drawTiles (t:ts) (p:ps) blocks = drawTile Start (0, 0) 4
+drawTiles (t:ts) (p:ps) blocks = drawTile Start p 4
   --drawTile t p blocks
   --drawTiles ts ps blocks
 
