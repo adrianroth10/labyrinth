@@ -4,7 +4,7 @@ MAIN = Main.hs
 all: run
 
 labyrinth.js: labyrinth.hs
-	hastec -o $@ $^
+	hastec -Wall -fno-warn-unused-do-bind -o $@ $^
 
 run: labyrinth.js
 	firefox --new-tab index.html

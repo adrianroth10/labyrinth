@@ -1,42 +1,77 @@
-import Haste
+--import Haste
 import Haste.Graphics.Canvas
 
--- | A 40*40 square with a 20*20 square inside of it and a line running
---   through it.
-squareShape :: Shape ()
-squareShape = do
-  rect (-20, -20) (20, 20)
-  rect (-10, -10) (10, 10)
-  line (-20, -20) (20, 20)
+type Map = (Double, [Tile])
+data Tile = Free | Start | End | Wall | Event deriving (Eq, Show)
+data State = State {
+    x_coord :: Double,
+    y_coord :: Double
+  }
 
--- | You can stroke any shape to get a "wireframe" version of them.
-square :: Picture ()
-square = stroke squareShape
+--constants
+width, height :: Double
+width = 512
+height = 512
+initState :: State
+initState = State {
+    x_coord = width / 2,
+    y_coord = height / 2
+  }
 
--- | Or you can fill them.
-filledSquare :: Picture ()
-filledSquare = fill squareShape
+--colors
+black, white, red, yellow, green, blue :: Picture () -> Picture ()
+black = color $ RGB 0 0 0
+white = color $ RGB 255 255 255
+red = color $ RGB 255 0 0
+yellow = color $ RGB 255 255 0
+green = color $ RGB 0 255 0
+blue = color $ RGB 0 0 255
 
--- | Then you grab a canvas object...
+drawShape :: (Picture () -> Picture ()) -> Shape () -> Picture ()
+drawShape col = col . fill
+
+shapeCircle, shapeRect:: Rect -> Shape ()
+shapeCircle (Rect x y w h) = circle (x + w / 2, y + h / 2)
+                                    (min (w / 2) (h / 2))
+shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
+
+drawTile :: Tile -> Rect -> Picture ()
+drawTile Free = drawShape white . shapeRect 
+drawTile Start = drawShape yellow . shapeCircle
+drawTile End = drawShape green . shapeCircle
+drawTile Wall = drawShape black . shapeRect
+drawTile Event = drawShape red . shapeCircle
+
+drawTiles :: [Tile] -> [Rect] -> Picture ()
+drawTiles [] _ = return ()
+drawTiles _ [] = return ()
+drawTiles  (t:ts) (r:rs) = do
+  drawTile t r
+  drawTiles ts rs
+
+mesh :: Double -> [Rect]
+mesh c = map (\(x, y) -> Rect x y w h) points
+  where
+    w = width / c
+    h = height / c
+    pointMul (x1, y1) (x2, y2) = (x1 * x2, y1 * y2)
+    coordinates = [(x, y) | y <- [0..c - 1], x <- [0..c - 1]]
+    points = map (pointMul (w, h)) coordinates
+
+drawMap :: Map -> Picture ()
+drawMap (c, tiles) = drawTiles tiles (mesh c)
+
+drawPlayer :: State -> Picture ()
+drawPlayer state = drawShape blue $ circle (x_coord state, y_coord state) 50
+
+gamePicture :: Map -> Picture ()
+gamePicture m = do 
+  drawMap m
+  drawPlayer initState
+
 main :: IO ()
 main = do
   Just can <- getCanvasById "canvas"
-  animate can 0
-
--- | ...and use the render function to draw your image.
---   The picture type is a monad, so you can compose several pictures easily
---   using do-notation.
-animate :: Canvas -> Double -> IO ()
-animate can angle = do
-  -- There are several transformation functions as well. All of them take a
-  -- Picture () as their argument, and apply their transformation only to that
-  -- picture, so the user doesn't need to manage the canvas state machine
-  -- explicitly.
-  render can $ do
-    translate (160, 160) $ rotate angle $ do
-      square
-      translate (100, 100) . rotate (-angle) . color (RGB 255 0 0) $ filledSquare
-    color (RGBA 0 0 255 0.5) . font "20px Bitstream Vera" $ do
-      text (10, 160) "You can use transparency too!"
-  setTimer (Once 10) $ animate can (angle + 0.01)
-  return ()
+  render can $ gamePicture (3, [Wall, Free, Wall,
+                                Wall, Start, Wall,
+                                Wall, Wall, Wall])
