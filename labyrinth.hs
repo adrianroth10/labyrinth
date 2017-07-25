@@ -1,4 +1,5 @@
---import Haste
+import Haste.Events
+import Haste.DOM
 import Haste.Graphics.Canvas
 
 type Map = (Double, [Tile])
@@ -9,9 +10,10 @@ data State = State {
   }
 
 --constants
-width, height :: Double
+width, height, blocks :: Double
 width = 512
 height = 512
+blocks = 3
 initState :: State
 initState = State {
     x_coord = width / 2,
@@ -52,8 +54,8 @@ drawTiles  (t:ts) (r:rs) = do
 mesh :: Double -> [Rect]
 mesh c = map (\(x, y) -> Rect x y w h) points
   where
-    w = width / c
-    h = height / c
+    w = width / blocks
+    h = height / blocks
     pointMul (x1, y1) (x2, y2) = (x1 * x2, y1 * y2)
     coordinates = [(x, y) | y <- [0..c - 1], x <- [0..c - 1]]
     points = map (pointMul (w, h)) coordinates
@@ -69,9 +71,23 @@ gamePicture m = do
   drawMap m
   drawPlayer initState
 
+--leftCode, upCode, rightCode, downCode :: Int
+--leftCode = 37
+--upCode = 38
+--rightCode = 39
+--downCode = 40
+
+movePlayer :: Canvas -> Picture () -> MouseData -> IO ()
+movePlayer canvas picture (MouseData (x, y) _ _) = do
+  render canvas $ translate (realToFrac (-x), realToFrac (-y)) picture 
+
 main :: IO ()
 main = do
-  Just can <- getCanvasById "canvas"
-  render can $ gamePicture (3, [Wall, Free, Wall,
-                                Wall, Start, Wall,
-                                Wall, Wall, Wall])
+  Just ce <- elemById "canvas"
+  Just c <- fromElem ce
+  let picture = gamePicture (4, [Wall, Free, Wall, Event,
+                                 Wall, Start, Wall, Free,
+                                 Wall, Wall, Wall, Free,
+                                 Wall, Event, Wall, Free])
+  onEvent ce Click $ movePlayer c picture
+  render c picture
