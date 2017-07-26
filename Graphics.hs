@@ -1,24 +1,17 @@
-import Haste.Events
-import Haste.DOM
-import Haste.Graphics.Canvas
+module Graphics (width,
+                 height,
+                 drawMap,
+                 drawPlayer,
+                 translateMap) where
+import Map
 
-type Map = (Double, [Tile])
-data Tile = Free | Start | End | Wall | Event deriving (Eq, Show)
-data State = State {
-    x_coord :: Double,
-    y_coord :: Double
-  }
+import Haste.Graphics.Canvas
 
 --constants
 width, height, blocks :: Double
 width = 512
 height = 512
-blocks = 3
-initState :: State
-initState = State {
-    x_coord = width / 2,
-    y_coord = height / 2
-  }
+blocks = 4
 
 --colors
 black, white, red, yellow, green, blue :: Picture () -> Picture ()
@@ -63,31 +56,12 @@ mesh c = map (\(x, y) -> Rect x y w h) points
 drawMap :: Map -> Picture ()
 drawMap (c, tiles) = drawTiles tiles (mesh c)
 
-drawPlayer :: State -> Picture ()
-drawPlayer state = drawShape blue $ circle (x_coord state, y_coord state) 50
+drawPlayer :: Picture ()
+drawPlayer = drawShape blue $ circle (width / 2, height / 2)
+                                     (width / blocks / 2 - 10)
 
-gamePicture :: Map -> Picture ()
-gamePicture m = do 
-  drawMap m
-  drawPlayer initState
-
---leftCode, upCode, rightCode, downCode :: Int
---leftCode = 37
---upCode = 38
---rightCode = 39
---downCode = 40
-
-movePlayer :: Canvas -> Picture () -> MouseData -> IO ()
-movePlayer canvas picture (MouseData (x, y) _ _) = do
-  render canvas $ translate (realToFrac (-x), realToFrac (-y)) picture 
-
-main :: IO ()
-main = do
-  Just ce <- elemById "canvas"
-  Just c <- fromElem ce
-  let picture = gamePicture (4, [Wall, Free, Wall, Event,
-                                 Wall, Start, Wall, Free,
-                                 Wall, Wall, Wall, Free,
-                                 Wall, Event, Wall, Free])
-  onEvent ce Click $ movePlayer c picture
-  render c picture
+translateMap :: Double -> Double -> Picture () -> Picture ()
+translateMap x y picture = translate (x_i, y_i) picture
+  where
+    x_i = -(x - (blocks - 1) / 2) * width / blocks
+    y_i = -(y - (blocks - 1) / 2) * height / blocks

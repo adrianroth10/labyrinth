@@ -3,11 +3,11 @@ MAIN = Main.hs
 
 all: run
 
-labyrinth.js: labyrinth.hs
+labyrinth.js: Labyrinth.hs Graphics.hs Map.hs Game.hs
 	hastec -Wall -fno-warn-unused-do-bind -o $@ $^
 
 run: labyrinth.js
 	firefox --new-tab index.html
 
 clean:
-	rm -r *.hi *.ho *.js
+	rm *.hi *.o *.jsmod *.js
