@@ -6,7 +6,6 @@ import Game
 
 import Haste.Events
 import Haste.DOM
-import Haste.Graphics.Canvas
 import Data.IORef
 
 m :: Map
@@ -15,15 +14,19 @@ m = (4, [Wall, Free, Wall, Event,
          Wall, Wall, Wall, Free,
          Wall, Event, Wall, Free])
 
+
 main :: IO ()
 main = do
   Just ce <- elemById "canvas"
   Just c <- fromElem ce
 
-  let state = startState m
-  let picture = drawMap m
   stateRef <- newIORef state
-  onEvent ce Click $ movePlayer c picture stateRef
-  render c $ do 
-    translateMap (x_coord state) (y_coord state) picture
-    drawPlayer
+  onEvent ce
+          Click $
+          movePlayer (renderState c picture) 
+                     (((.) (validState m)) . updateState width height)
+                     stateRef
+  renderState c picture state
+  where
+    state = startState m
+    picture = drawMap m

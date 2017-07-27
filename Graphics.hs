@@ -1,8 +1,7 @@
 module Graphics (width,
                  height,
                  drawMap,
-                 drawPlayer,
-                 translateMap) where
+                 renderState) where
 import Map
 
 import Haste.Graphics.Canvas
@@ -65,3 +64,8 @@ translateMap x y picture = translate (x_i, y_i) picture
   where
     x_i = -(x - (blocks - 1) / 2) * width / blocks
     y_i = -(y - (blocks - 1) / 2) * height / blocks
+
+renderState :: Canvas -> Picture () -> (Double, Double) -> IO ()
+renderState c picture (x, y) = render c $ do
+    translateMap x y picture
+    drawPlayer

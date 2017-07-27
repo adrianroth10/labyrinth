@@ -1,7 +1,7 @@
-module Game (State(x_coord, y_coord),
+module Game (validState,
+             updateState,
              movePlayer,
              startState) where
-import Graphics
 import Map
 
 import Haste.Graphics.Canvas
@@ -10,30 +10,47 @@ import Haste.Events
 import Data.IORef
 import Data.List
 
-data State = State {
-    x_coord :: Double,
-    y_coord :: Double
-  }
+type State = Point
 
-movePlayer :: Canvas -> Picture () -> IORef State -> MouseData -> IO ()
-movePlayer canvas picture stateRef (MouseData (x, y) _ _) = do
-  state <- readIORef stateRef 
-  let newState = State (new_coord x width (x_coord state))
-                       (new_coord y height (y_coord state))
-  render canvas $ do 
-    translateMap (x_coord state) (y_coord state) picture
-    drawPlayer
-  writeIORef stateRef newState
+validState :: Map -> State -> Maybe State
+validState (c, tiles) (x, y)
+  | x < 0 || y < 0 || i >= length tiles = Nothing
+  | tiles !! i  == Wall = Nothing
+  | otherwise = Just $ (x, y)
+  where i = floor $ x + c * y
+
+updateCoord :: Double -> Double -> Double -> Double
+updateCoord threshhold dir old
+  | dir > threshhold = old + 1
+  | dir < -threshhold = old - 1
+  | otherwise = old
+
+updateState :: Double -> Double -> (Int, Int) -> State -> State
+updateState width height (x, y) (xS, yS)
+  | abs xT > abs yT = (updateCoord (width / 4) xT xS, yS)
+  | otherwise = (xS, updateCoord (height / 4) yT yS)
   where
-    new_coord mouse size old =
-          old +
-          signum (fromIntegral mouse - size / 2) *
-          boolToDouble (abs (fromIntegral mouse - size / 2) > 50)
-    boolToDouble False = 0
-    boolToDouble True = 1
+    xT = fromIntegral x - width / 2
+    yT = fromIntegral y - height / 2
+
+movePlayer :: (State -> IO ()) ->
+              ((Int, Int) -> State -> Maybe State) ->
+              IORef State ->
+              MouseData ->
+              IO ()
+movePlayer renderState
+           updateAndValidateState
+           stateRef
+           (MouseData mousePos _ _) = do
+  state <- readIORef stateRef 
+  case updateAndValidateState mousePos state of
+    Just state' -> do 
+      renderState state'
+      writeIORef stateRef state'
+    Nothing -> return ()
 
 startState :: Map -> State
-startState (c, tiles) = State x y
+startState (c, tiles) = (x, y)
   where
     (Just i) = elemIndex Start tiles
     x = fromIntegral (mod i (floor c))
