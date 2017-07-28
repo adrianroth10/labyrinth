@@ -34,7 +34,7 @@ drawTile Free = drawShape white . shapeRect
 drawTile Start = drawShape yellow . shapeCircle
 drawTile End = drawShape green . shapeCircle
 drawTile Wall = drawShape black . shapeRect
-drawTile Event = drawShape red . shapeCircle
+drawTile (Event _) = drawShape red . shapeCircle
 
 drawTiles :: [Tile] -> [Rect] -> Picture ()
 drawTiles [] _ = return ()
@@ -65,7 +65,7 @@ translateMap x y picture = translate (x_i, y_i) picture
     x_i = -(x - (blocks - 1) / 2) * width / blocks
     y_i = -(y - (blocks - 1) / 2) * height / blocks
 
-renderState :: Canvas -> Picture () -> (Double, Double) -> IO ()
+renderState :: Canvas -> Picture () -> Point -> IO ()
 renderState c picture (x, y) = render c $ do
     translateMap x y picture
     drawPlayer
