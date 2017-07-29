@@ -1,1 +1,0 @@
-module LabyrinthSpec (tests) where

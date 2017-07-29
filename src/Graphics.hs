@@ -1,10 +1,13 @@
 module Graphics (width,
                  height,
                  drawMap,
-                 renderState) where
+                 renderState,
+                 outputText) where
 import Map
 
 import Haste.Graphics.Canvas
+import Haste.Foreign
+import Haste.Prim
 
 --constants
 width, height, blocks :: Double
@@ -31,8 +34,8 @@ shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
 
 drawTile :: Tile -> Rect -> Picture ()
 drawTile Free = drawShape white . shapeRect 
-drawTile Start = drawShape yellow . shapeCircle
-drawTile End = drawShape green . shapeCircle
+drawTile (Start _) = drawShape yellow . shapeCircle
+drawTile (End _) = drawShape green . shapeCircle
 drawTile Wall = drawShape black . shapeRect
 drawTile (Event _) = drawShape red . shapeCircle
 
@@ -69,3 +72,6 @@ renderState :: Canvas -> Picture () -> Point -> IO ()
 renderState c picture (x, y) = render c $ do
     translateMap x y picture
     drawPlayer
+
+outputText :: String -> IO ()
+outputText = ffi $ toJSStr "(function(str){document.getElementById(\"output\").innerHTML = str;})"

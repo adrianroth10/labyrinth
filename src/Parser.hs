@@ -1,12 +1,9 @@
-module Parser(module CoreParser, T, digit, digitVal, chars, letter, err,
+module Parser(Parser, digit, digitVal, chars, letter, err,
               lit, number, iter, accept, require, token,
-              spaces, word, (-#), (#-)) where
+              spaces, word, (-#), (#-), (#), (>->), (!), return, line) where
 import Prelude hiding (return, fail)
 import Data.Char
-import CoreParser
 infixl 7 -#, #- 
-
-type T a = Parser a
 
 err :: String -> Parser a
 err message cs = error (message++" near "++cs++"\n")
@@ -30,6 +27,9 @@ token m = m #- spaces
 
 letter :: Parser Char
 letter = char ? isAlpha
+
+line :: Parser String
+line = lit '\n' -# return [] ! char # line >-> cons
 
 word :: Parser String
 word = token (letter # iter letter >-> cons)
@@ -59,3 +59,53 @@ number' n = digitVal #> (\ d -> number' (10*n+d))
 number :: Parser Integer
 number = token (digitVal #> number')
 
+----------------Core--------------------
+infixl 3 ! 
+infixl 7 ?
+infixl 6 #
+infixl 5 >->
+infixl 4 #>
+
+type Parser a = String -> Maybe (a, String)
+
+char :: Parser Char
+char []= Nothing
+char (c:cs) = Just (c, cs)
+
+return :: a -> Parser a
+return a cs = Just (a, cs)
+
+fail ::  Parser a 
+fail cs = Nothing
+
+(!) :: Parser a -> Parser a -> Parser a
+(m ! n) cs = case m cs of
+             Nothing -> n cs 
+             mcs -> mcs
+
+(?) :: Parser a -> (a -> Bool) -> Parser a
+(m ? p) cs = 
+    case m cs of
+    Nothing -> Nothing
+    Just(r, s) -> if p r then Just(r, s) else Nothing
+
+(#) :: Parser a -> Parser b -> Parser (a, b)
+(m # n) cs = 
+    case m cs of
+    Nothing -> Nothing
+    Just(a, cs') -> 
+        case n cs' of
+        Nothing -> Nothing
+        Just(b, cs'') -> Just((a, b), cs'')
+
+(>->) :: Parser a -> (a -> b) -> Parser b
+(m >-> b) cs = 
+    case m cs of
+    Just(a, cs') -> Just(b a, cs')
+    Nothing -> Nothing
+
+(#>) :: Parser a -> (a -> Parser b) -> Parser b 
+(p #> k) cs = 
+    case p cs of
+    Nothing -> Nothing
+    Just(a, cs') -> k a cs'

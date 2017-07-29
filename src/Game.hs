@@ -64,6 +64,6 @@ movePlayer renderState
 startPoint :: Map -> State
 startPoint (c, tiles) = (x, y)
   where
-    (Just i) = elemIndex Start tiles
+    (Just i) = elemIndex 1 $ map unTile tiles
     x = fromIntegral (mod i (floor c))
     y = fromInteger (floor ((realToFrac i) / c))

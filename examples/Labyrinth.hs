@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import Graphics
@@ -7,23 +6,18 @@ import Game
 
 import Haste.DOM
 import Haste.Events
-import Haste.Foreign
 
 import Data.IORef
 
-
 m :: Map
-m = (4, [Wall, Free, Wall, Event event1,
-         Wall, Free, Free, Start,
+m = (4, [Wall, End "tjeena", Wall, Event event1,
+         Wall, Free, Free, Start "tjabba",
          Wall, Free, Wall, Free,
          Wall, Event event2, Wall, Free])
 
 event1, event2 :: String
 event1 = "<p>This is an event on two lines</p><p>This is the second line, WAOW!</p>"
 event2 = "<p>Heres a link to <a target=\"_blank\" href=https://www.rothfastigheter.se>click</a></p>"
-
-outputText :: String -> IO ()
-outputText = ffi "(function(str){document.getElementById(\"output\").innerHTML = str;})"
 
 main :: IO ()
 main = do
