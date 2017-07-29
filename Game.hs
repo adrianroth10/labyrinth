@@ -11,40 +11,21 @@ import Haste.Events
 import Data.IORef
 import Data.List
 
-type State = (Point, Maybe HandlerInfo)
+type State = Point
 
--- remove new click handle
--- reinstate the last handle
--- render the game again
-eventWatcher :: (Point -> IO ()) -> IORef State -> MouseData -> IO ()
-eventWatcher renderState stateRef _ = return ()
+tileString :: Tile -> String
+tileString (Event s) = s
+tileString _ = ""
 
-isEvent :: Tile -> Bool
-isEvent (Event _) = True
-isEvent _ = False
-
-eventState :: Elem -> Map -> (Point -> IO ()) -> IORef State -> IO ()
-eventState ce (c, tiles) renderState stateRef
-  | isEvent (tiles !! i) = do
-    (point, Just handle) <- readIORef stateRef
-    unregisterHandler handle
-    writeIORef stateRef ((x, y), Nothing)
-    handle' <- onEvent
-          ce
-          Click $
-          (eventWatcher renderState stateRef)
-    writeIORef stateRef (point, Just handle')
-                       
-    -- render the text in the string
-  | otherwise = return ()
-  where
-    i = floor $ x + c * y
+eventState :: Map -> (String -> IO ()) -> State -> IO ()
+eventState (c, tiles) outputText (x, y) = outputText $ tileString $ tiles !! i
+  where i = floor $ x + c * y
 
 validState :: Map -> State -> Maybe State
-validState (c, tiles) ((x, y), h)
+validState (c, tiles) (x, y)
   | x < 0 || y < 0 || i >= length tiles = Nothing
   | tiles !! i  == Wall = Nothing
-  | otherwise = Just $ ((x, y), h)
+  | otherwise = Just $ (x, y)
   where i = floor $ x + c * y
 
 updateCoord :: Double -> Double -> Double -> Double
@@ -54,9 +35,9 @@ updateCoord threshhold dir old
   | otherwise = old
 
 updateState :: Double -> Double -> (Int, Int) -> State -> State
-updateState width height (x, y) ((xS, yS), h)
-  | abs xT > abs yT = ((updateCoord (width / 4) xT xS, yS), h)
-  | otherwise = ((xS, updateCoord (height / 4) yT yS), h)
+updateState width height (x, y) (xS, yS)
+  | abs xT > abs yT = (updateCoord (width / 4) xT xS, yS)
+  | otherwise = (xS, updateCoord (height / 4) yT yS)
   where
     xT = fromIntegral x - width / 2
     yT = fromIntegral y - height / 2
@@ -75,12 +56,12 @@ movePlayer renderState
   state <- readIORef stateRef 
   case updateAndValidateState mousePos state of
     Just state' -> do 
-      renderState $ fst state'
+      renderState $ state'
       writeIORef stateRef state'
       eventStateCurried state'
     Nothing -> return ()
 
-startPoint :: Map -> Point
+startPoint :: Map -> State
 startPoint (c, tiles) = (x, y)
   where
     (Just i) = elemIndex Start tiles

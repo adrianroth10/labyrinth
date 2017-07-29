@@ -1,8 +1,29 @@
 <html>
 <body>
+
 <script src="labyrinth.js"></script>
-<center>
-  <canvas id="canvas" style="border: 1px solid black;" width="512" height="512"></canvas>
-</center>
+
+<style>
+.cols {
+	-webkit-column-count: 2;
+	-moz-column-count: 2;
+	column-count: 2;
+}
+canvas {
+	margin-top: 20px;
+	margin-left: 20px;
+}
+div.output {
+	position: relative;
+	left: 600px;
+	bottom: 470px;
+}
+</style>
+
+<div>
+	<canvas id="canvas" style="border: 1px solid black;" width="512" height="512"></canvas>
+	<div id="output" class="output"></div>
+</div>
+
 </body>
 </html>
