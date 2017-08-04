@@ -5,6 +5,7 @@ module Game (eventState,
              startPoint) where
 import Map
 
+import Haste
 import Haste.Graphics.Canvas
 import Haste.Events
 
@@ -44,6 +45,21 @@ updateState width height (x, y) (xS, yS)
     xT = fromIntegral x - width / 2
     yT = fromIntegral y - height / 2
 
+nInterPoints :: Double
+nInterPoints = 30
+interPoints :: Point -> Point -> [Point]
+interPoints (x1, y1) (x2, y2) = (take (floor nInterPoints) $ zip
+                               (iterate (+(x2 - x1) / nInterPoints) x1)
+                               (iterate (+(y2 - y1) / nInterPoints) y1))
+                               ++ [(x2, y2)]
+
+animateMovePlayer :: (Point -> IO()) -> [Point] -> IO ()
+animateMovePlayer _ []  = return ()
+animateMovePlayer renderState (nextState:xs)  = do
+  renderState nextState
+  setTimer (Once 1) (animateMovePlayer renderState xs)
+  return ()
+
 movePlayer :: (Point -> IO ()) ->
               ((Int, Int) -> State -> Maybe State) ->
               (State -> IO ()) ->
@@ -58,8 +74,8 @@ movePlayer renderState
   state <- readIORef stateRef 
   case updateAndValidateState mousePos state of
     Just state' -> do 
-      renderState $ state'
       writeIORef stateRef state'
+      animateMovePlayer renderState (interPoints state state')
       eventStateCurried state'
     Nothing -> return ()
 
