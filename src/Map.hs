@@ -14,7 +14,7 @@ prepend :: (a, [a]) -> [a]
 prepend (x, xs) = x:xs
 
 eventContent :: Parser [String]
-eventContent = accept "End" -# Parser.return [] !
+eventContent = accept "END" -# Parser.return [] !
                line # eventContent >-> prepend
 
 parseEvent :: Parser (String, String)
@@ -79,14 +79,3 @@ format (Just (((r, c), xs), s))
 
 parseMap :: String -> Maybe Map
 parseMap = format . (number # number # (mapContent >-> (map tile)))
-
---loadMap :: String -> IO (Maybe Map)
---loadMap file = do
---  mapStr <- readFile file
---  Prelude.return $! parseMap mapStr
-
---testIn = "3\n3\n0 1 2\n3 4 4\n4 4 4\nEvent Start\nbla\nEnd\nEvent End\nha\nEnd\nEvent 1\n<p>\nHello World!\n</p>\nEnd"
---a = fromJust $ (number # number # (mapContent >-> (map tile))) $ parseMapIn1
---m = fst a
---t = snd m
---e = fmap fst $ parseEvents $ snd a

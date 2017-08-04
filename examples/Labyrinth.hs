@@ -16,17 +16,20 @@ whenLoaded (Just mapStr) = do
     Just m -> do
       Just ce <- elemById "canvas"
       Just c <- fromElem ce
+      Just divElem <- elemById "output"
       stateRef <- newIORef $ startPoint m
       onEvent ce
               Click $
               movePlayer (renderState c (drawMap m)) 
                          (((.) (validState m)) . updateState width height)
-                         (eventState m outputText)
+                         (eventState m (changeInnerHTML divElem))
                          stateRef
       renderState c (drawMap m) (startPoint m)
-    Nothing -> error "Map parsing wrong"
+      eventState m (changeInnerHTML divElem) (startPoint m)
+    Nothing -> error "Map parsing error"
 whenLoaded Nothing = error "Map not loaded"
 
 main :: IO ()
 main = do
-  ajaxRequest GET "map/l1.txt" noParams whenLoaded
+  -- Loading the map
+  ajaxRequest GET "map/map.txt" noParams whenLoaded

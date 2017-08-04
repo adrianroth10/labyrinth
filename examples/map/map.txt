@@ -1,0 +1,22 @@
+8
+8
+0 0 0 0 0 0 0 4
+0 3 3 3 3 3 3 3
+4 0 0 4 0 0 3 4
+0 3 3 1 3 0 3 0
+0 3 3 3 3 0 3 0
+4 0 0 0 0 4 0 0
+0 3 3 3 3 3 3 3
+0 0 0 0 0 0 0 2
+
+Event Start
+<p>This is the Start. Click on the edges of the canvas to move! :)</p>
+END
+
+Event End
+<p>This is the End. Though nothing happened :/ What now?</p>
+END
+
+Event 1
+<a target="_blank" href="https://rothfastigheter.se">important link ;)</a>
+END

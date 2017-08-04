@@ -15,6 +15,8 @@ type State = Point
 
 tileString :: Tile -> String
 tileString (Event s) = s
+tileString (Start s) = s
+tileString (End s) = s
 tileString _ = ""
 
 eventState :: Map -> (String -> IO ()) -> State -> IO ()

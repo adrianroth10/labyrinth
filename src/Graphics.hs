@@ -2,18 +2,17 @@ module Graphics (width,
                  height,
                  drawMap,
                  renderState,
-                 outputText) where
+                 changeInnerHTML) where
 import Map
 
+import Haste.DOM
 import Haste.Graphics.Canvas
-import Haste.Foreign
-import Haste.Prim
 
 --constants
 width, height, blocks :: Double
 width = 512
 height = 512
-blocks = 4
+blocks = 6
 
 --colors
 black, white, red, yellow, green, blue :: Picture () -> Picture ()
@@ -73,5 +72,5 @@ renderState c picture (x, y) = render c $ do
     translateMap x y picture
     drawPlayer
 
-outputText :: String -> IO ()
-outputText = ffi $ toJSStr "(function(str){document.getElementById(\"output\").innerHTML = str;})"
+changeInnerHTML :: Elem -> String -> IO ()
+changeInnerHTML e s = setProp e "innerHTML" s
