@@ -33,7 +33,7 @@ shapeCircle (Rect x y w h) = circle (x + w / 2, y + h / 2)
 shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
 
 drawTile :: Tile -> Rect -> Picture ()
-drawTile Free = drawShape white . shapeRect 
+drawTile Free = drawShape white . shapeCircle
 drawTile (Start _) = drawShape yellow . shapeCircle
 drawTile (End _) = drawShape green . shapeCircle
 drawTile Wall = drawShape black . shapeRect
