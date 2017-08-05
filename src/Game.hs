@@ -26,7 +26,7 @@ eventState (c, tiles) outputText (x, y) = outputText $ tileString $ tiles !! i
 
 validState :: Map -> State -> Maybe State
 validState (c, tiles) (x, y)
-  | x < 0 || y < 0 || i >= length tiles = Nothing
+  | x < 0 || y < 0 || x >= c || i >= length tiles = Nothing
   | tiles !! i  == Wall = Nothing
   | otherwise = Just $ (x, y)
   where i = floor $ x + c * y
@@ -46,18 +46,21 @@ updateState width height (x, y) (xS, yS)
     yT = fromIntegral y - height / 2
 
 nInterPoints :: Double
-nInterPoints = 30
+nInterPoints = 10
 interPoints :: Point -> Point -> [Point]
 interPoints (x1, y1) (x2, y2) = (take (floor nInterPoints) $ zip
-                               (iterate (+(x2 - x1) / nInterPoints) x1)
-                               (iterate (+(y2 - y1) / nInterPoints) y1))
-                               ++ [(x2, y2)]
+                                                (iterate (+xdiff) x1)
+                                                (iterate (+ydiff) y1))
+                                                  ++ [(x2, y2)]
+  where
+    xdiff = (x2 - x1) / nInterPoints
+    ydiff = (y2 - y1) / nInterPoints
 
 animateMovePlayer :: (Point -> IO()) -> [Point] -> IO ()
 animateMovePlayer _ []  = return ()
 animateMovePlayer renderState (nextState:xs)  = do
   renderState nextState
-  setTimer (Once 1) (animateMovePlayer renderState xs)
+  setTimer (Once 5) (animateMovePlayer renderState xs)
   return ()
 
 movePlayer :: (Point -> IO ()) ->
