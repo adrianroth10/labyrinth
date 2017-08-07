@@ -17,15 +17,15 @@ whenLoaded (Just mapStr) = do
       Just ce <- elemById "canvas"
       Just c <- fromElem ce
       Just divElem <- elemById "output"
-      stateRef <- newIORef $ startPoint m
+      stateRef <- newIORef $ (startPoint m, False)
       onEvent ce
               Click $
               movePlayer (renderState c (drawMap m)) 
-                         (((.) (validState m)) . updateState width height)
-                         (eventState m (changeInnerHTML divElem))
+                         (((.) (validPoint m)) . updatePoint width height)
+                         (eventPoint m (changeInnerHTML divElem))
                          stateRef
       renderState c (drawMap m) (startPoint m)
-      eventState m (changeInnerHTML divElem) (startPoint m)
+      eventPoint m (changeInnerHTML divElem) (startPoint m)
     Nothing -> error "Map parsing error"
 whenLoaded Nothing = error "Map not loaded"
 
