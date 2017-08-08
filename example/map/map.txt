@@ -1,22 +1,28 @@
 8
 8
-0 0 0 0 0 0 0 4
-0 3 3 3 3 3 3 3
-4 0 0 4 0 0 3 4
-0 3 3 1 3 0 3 0
-0 3 3 3 3 0 3 0
-4 0 0 0 0 4 0 0
-0 3 3 3 3 3 3 3
-0 0 0 0 0 0 0 2
+10 10 10 10 10 10 10 30
+10 20 20 20 20 20 20 20
+30 10 10 30 10 10 20 30
+10 20 20  0 20 10 20 10
+10 20 20 20 20 10 20 10
+30 10 10 10 10 30 10 10
+10 20 20 20 20 20 20 20
+10 10 10 10 10 10 10  1
 
-Event Start
+Start IMG map/Free.bmp
 <p>This is the Start. Click on the edges of the canvas to move! :)</p>
 END
 
-Event End
+End IMG map/Free.bmp
 <p>This is the End. Though nothing happened :/ What now?</p>
 END
 
-Event 1
+Free 0 IMG map/Free.bmp
+
+Wall 0 IMG map/Wall.bmp
+<p>This is the End. Though nothing happened :/ What now?</p>
+END
+
+Event 0 IMG map/Free.bmp
 <a target="_blank" href="https://rothfastigheter.se">important link ;)</a>
 END

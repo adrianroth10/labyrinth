@@ -1,14 +1,15 @@
-module Map (Map,
-            Tile (Free, Start, End, Wall, Event),
-            unTile,
-            parseMap) where
+module Map where --(Map,
+            --Tile (Free, Start, End, Wall, Event),
+            --unTile,
+            --parseMap) where
 
 import Parser
 import Data.Maybe
 
 type Map = (Double, [Tile])
-data Tile = Free | Start String | End String |
-            Wall | Event String deriving (Eq, Show)
+-- First string is always img path and second is the event on the tile
+data Tile = Start String String | End String String | Free String |
+            Wall String | Event String String deriving (Eq, Show)
 
 prepend :: (a, [a]) -> [a]
 prepend (x, xs) = x:xs
@@ -17,54 +18,43 @@ eventContent :: Parser [String]
 eventContent = accept "END" -# Parser.return [] !
                line # eventContent >-> prepend
 
-parseEvent :: Parser (String, String)
-parseEvent = accept "Event" -# (number >-> show) # (eventContent >-> unlines) !
-             accept "Event" -# word # (eventContent >-> unlines)
+parseEvent :: Parser (Integer, (String, String))
+parseEvent = accept "Start" -# accept "IMG" -# (var # (eventContent >-> unlines)) >-> (\(img, event) -> (unTile (Start "" ""), (img, event))) !
+             accept "Start" -# (eventContent >-> unlines) >-> (\event -> (unTile (Start "" ""), ("", event))) !
+             accept "End" -# accept "IMG" -# (var # (eventContent >-> unlines)) >-> (\(img, event) -> (unTile (End "" ""), (img, event))) !
+             accept "End" -# (eventContent >-> unlines) >-> (\event -> (unTile (End "" ""), ("", event))) !
+             accept "Free" -# (number #- accept "IMG" # var) >-> (\(n, img) -> (n + unTile (Free ""), (img, ""))) !
+             accept "Free" -# number >-> (\n -> (n + unTile (Free ""), ("", ""))) !
+             accept "Wall" -# (number #- accept "IMG" # var) >-> (\(n, img) -> (n + unTile (Wall ""), (img, ""))) !
+             accept "Wall" -# number >-> (\n -> (n + unTile (Wall ""), ("", ""))) !
+             accept "Event" -# (number #- accept "IMG" # var # (eventContent >-> unlines)) >-> (\((n, img), event) -> (n + unTile (Event "" ""), (img, event))) !
+             accept "Event" -# (number # (eventContent >-> unlines)) >-> (\(n, event) -> (n + unTile (Event "" ""), ("", event)))
 
-parseEvents :: Parser [(String, String)]
+parseEvents :: Parser [(Integer, (String, String))]
 parseEvents = parseEvent # parseEvents >-> prepend !  Parser.return []
 
-inputEvents :: Maybe [(String, String)] -> [Tile] -> Maybe [Tile]
+inputEvents :: Maybe [(Integer, (String, String))] -> [Integer] -> Maybe [Tile]
 inputEvents Nothing _ = Nothing
 inputEvents _ [] = Just []
-inputEvents (Just []) tiles = Just tiles
-inputEvents (Just events) ((Start _):ts)
-  | isNothing event = fmap (Start "" :)
-                     (inputEvents (Just events) ts)
-  | otherwise = fmap (Start (fromJust event) :)
-                     (inputEvents (Just events) ts)
-  where event = lookup "Start" events
-inputEvents (Just events) ((End _):ts)
-  | isNothing event = fmap (End "" :)
-                     (inputEvents (Just events) ts)
-  | otherwise = fmap (End (fromJust event) :)
-                     (inputEvents (Just events) ts)
-  where event = lookup "End" events
-inputEvents (Just events) ((Event s):ts)
-  | isNothing event = Nothing
-  | otherwise = fmap (Event (fromJust event) :)
-                     (inputEvents (Just events) ts)
-  where event = lookup s events
-inputEvents events (t:ts) = fmap (t:) (inputEvents events ts)
+inputEvents (Just []) tiles = Just $ map (flip tile ("", "")) tiles
+inputEvents (Just events) (n:ns) = fmap (maybe (tile n ("", "")) (tile n) (lookup n events):) (inputEvents (Just events) ns)
 
-tile :: Integer -> Tile
-tile 0 = Free
-tile 1 = Start ""
-tile 2 = End ""
-tile 3 = Wall
-tile n = Event $ show $ n - 3
+tile :: Integer -> (String, String) -> Tile
+tile n (img, event)
+  | n == unTile (Start "" "") = Start img event
+  | n == unTile (End "" "") = End img event
+  | n >= unTile (Free "") || n < unTile (Wall "") = Free img
+  | n >= unTile (Wall "") || n < unTile (Event "" "") = Wall img
+  | n >= unTile (Event "" "") = Event img event
 
 unTile :: Tile -> Integer
-unTile Free = 0
-unTile (Start _) = 1
-unTile (End _) = 2
-unTile Wall = 3
-unTile (Event _) = 4
+unTile (Start _ _) = 0
+unTile (End _ _) = 1
+unTile (Free _) = 10
+unTile (Wall _) = 20
+unTile (Event _ _) = 30
 
-mapContent :: Parser [Integer]
-mapContent = (number # mapContent >-> prepend) ! Parser.return []
-
-format :: Maybe (((Integer, Integer), [Tile]), String) -> Maybe Map
+format :: Maybe (((Integer, Integer), [Integer]), String) -> Maybe Map
 format Nothing = Nothing
 format (Just (((r, c), xs), s))
   | fromInteger (r * c) /= length xs = Nothing
@@ -72,10 +62,13 @@ format (Just (((r, c), xs), s))
   | length ends /= 1 = Nothing
   | otherwise = fmap (\tiles -> (fromInteger c, tiles)) eventedTiles
   where
-    starts = filter ((==) 1 . unTile) xs
-    ends = filter ((==) 2 . unTile) xs
+    starts = filter ((==) 0) xs
+    ends = filter ((==) 1) xs
     events = fmap fst $ parseEvents s
     eventedTiles = inputEvents events xs
 
+mapContent :: Parser [Integer]
+mapContent = (number # mapContent >-> prepend) ! Parser.return []
+
 parseMap :: String -> Maybe Map
-parseMap = format . (number # number # (mapContent >-> (map tile)))
+parseMap = format . (number # number # mapContent)

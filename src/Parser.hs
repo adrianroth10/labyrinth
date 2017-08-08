@@ -1,6 +1,7 @@
 module Parser(Parser, digit, digitVal, chars, letter, err,
               lit, number, iter, accept, require, token,
-              spaces, word, (-#), (#-), (#), (>->), (!), return, line) where
+              spaces, word, (-#), (#-), (#), (>->), (!), return,
+              line, var) where
 import Prelude hiding (return, fail)
 import Data.Char
 infixl 7 -#, #- 
@@ -30,6 +31,9 @@ letter = char ? isAlpha
 
 line :: Parser String
 line = lit '\n' -# return [] ! char # line >-> cons
+
+var :: Parser String
+var = token $ char ? isSpace -# return [] ! char # var >-> cons
 
 word :: Parser String
 word = token (letter # iter letter >-> cons)

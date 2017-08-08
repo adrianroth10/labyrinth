@@ -16,9 +16,9 @@ import Data.List
 type State = (Point, Bool)
 
 tileString :: Tile -> String
-tileString (Event s) = s
-tileString (Start s) = s
-tileString (End s) = s
+tileString (Event _ s) = s
+tileString (Start _ s) = s
+tileString (End _ s) = s
 tileString _ = ""
 
 eventPoint :: Map -> (String -> IO ()) -> Point -> IO ()
@@ -28,7 +28,7 @@ eventPoint (c, tiles) outputText (x, y) = outputText $ tileString $ tiles !! i
 validPoint :: Map -> Point -> Maybe Point
 validPoint (c, tiles) (x, y)
   | x < 0 || y < 0 || x >= c || i >= length tiles = Nothing
-  | tiles !! i  == Wall = Nothing
+  | unTile (tiles !! i) == unTile (Wall "") = Nothing
   | otherwise = Just $ (x, y)
   where i = floor $ x + c * y
 
@@ -92,6 +92,6 @@ movePlayer renderState
 startPoint :: Map -> Point
 startPoint (c, tiles) = (x, y)
   where
-    (Just i) = elemIndex 1 $ map unTile tiles
+    (Just i) = elemIndex (unTile (Start "" "")) $ map unTile tiles
     x = fromIntegral (mod i (floor c))
     y = fromInteger (floor ((realToFrac i) / c))

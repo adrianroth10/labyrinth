@@ -32,11 +32,26 @@ shapeCircle (Rect x y w h) = circle (x + w / 2, y + h / 2)
 shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
 
 drawTile :: Tile -> Rect -> Picture ()
-drawTile Free = drawShape white . shapeCircle
-drawTile (Start _) = drawShape yellow . shapeCircle
-drawTile (End _) = drawShape green . shapeCircle
-drawTile Wall = drawShape black . shapeRect
-drawTile (Event _) = drawShape red . shapeCircle
+drawTile (Start "" _) r = drawShape yellow $ shapeCircle r
+drawTile (Start img _) r = do
+  bmp <- loadBitmap img
+  drawScaled bmp r
+drawTile (End "" _) r = drawShape green $ shapeCircle r
+drawTile (End img _) r = do
+  bmp <- loadBitmap img
+  drawScaled bmp r
+drawTile (Free "") r = drawShape white $ shapeCircle r
+drawTile (Free img) r = do
+  bmp <- loadBitmap img
+  drawScaled bmp r
+drawTile (Wall "") r = drawShape black $ shapeRect r
+drawTile (Wall img) r = do
+  bmp <- loadBitmap img
+  drawScaled bmp r
+drawTile (Event "" _) r = drawShape red $ shapeCircle r
+drawTile (Event img _) r = do
+  bmp <- loadBitmap img
+  drawScaled bmp r
 
 drawTiles :: [Tile] -> [Rect] -> Picture ()
 drawTiles [] _ = return ()
