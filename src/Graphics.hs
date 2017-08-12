@@ -2,7 +2,8 @@ module Graphics (width,
                  height,
                  drawMap,
                  renderState,
-                 changeInnerHTML) where
+                 changeInnerHTML,
+                 loadImages) where
 import Map
 
 import Haste.DOM
@@ -21,7 +22,7 @@ white = color $ RGB 255 255 255
 red = color $ RGB 255 0 0
 yellow = color $ RGB 255 255 0
 green = color $ RGB 0 255 0
-blue = color $ RGB 0 0 255
+blue = color $ RGBA 0 0 255 0.5
 
 drawShape :: (Picture () -> Picture ()) -> Shape () -> Picture ()
 drawShape col = col . fill
@@ -31,34 +32,22 @@ shapeCircle (Rect x y w h) = circle (x + w / 2, y + h / 2)
                                     (min (w / 2) (h / 2))
 shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
 
-drawTile :: Tile -> Rect -> Picture ()
-drawTile (Start "" _) r = drawShape yellow $ shapeCircle r
-drawTile (Start img _) r = do
-  bmp <- loadBitmap img
-  drawScaled bmp r
-drawTile (End "" _) r = drawShape green $ shapeCircle r
-drawTile (End img _) r = do
-  bmp <- loadBitmap img
-  drawScaled bmp r
-drawTile (Free "") r = drawShape white $ shapeCircle r
-drawTile (Free img) r = do
-  bmp <- loadBitmap img
-  drawScaled bmp r
-drawTile (Wall "") r = drawShape black $ shapeRect r
-drawTile (Wall img) r = do
-  bmp <- loadBitmap img
-  drawScaled bmp r
-drawTile (Event "" _) r = drawShape red $ shapeCircle r
-drawTile (Event img _) r = do
-  bmp <- loadBitmap img
-  drawScaled bmp r
+-- Either all tiles have bitmaps or no tiles
+drawTile :: [(Tile, Bitmap)] -> Tile -> Rect -> Picture ()
+drawTile [] Start = drawShape yellow . shapeCircle
+drawTile [] End = drawShape green . shapeCircle
+drawTile [] (Free _) = drawShape black . shapeCircle
+drawTile [] (Wall _) = drawShape white . shapeRect
+drawTile [] (Event _) = drawShape red . shapeCircle
+drawTile imgs tile = drawScaled img
+  where Just img = lookup tile imgs
 
-drawTiles :: [Tile] -> [Rect] -> Picture ()
-drawTiles [] _ = return ()
-drawTiles _ [] = return ()
-drawTiles  (t:ts) (r:rs) = do
-  drawTile t r
-  drawTiles ts rs
+drawTiles :: [(Tile, Bitmap)] -> [Tile] -> [Rect] -> Picture ()
+drawTiles _ [] _ = return ()
+drawTiles _ _ [] = return ()
+drawTiles imgs (t:ts) (r:rs) = do
+  drawTile imgs t r
+  drawTiles imgs ts rs
 
 mesh :: Double -> [Rect]
 mesh c = map (\(x, y) -> Rect x y w h) points
@@ -69,12 +58,24 @@ mesh c = map (\(x, y) -> Rect x y w h) points
     coordinates = [(x, y) | y <- [0..c - 1], x <- [0..c - 1]]
     points = map (pointMul (w, h)) coordinates
 
-drawMap :: Map -> Picture ()
-drawMap (c, tiles) = drawTiles tiles (mesh c)
+loadImages :: [MapInput] -> IO [(Tile, Bitmap)]
+loadImages [] = return []
+loadImages ((_, ("", _)):xs) = loadImages xs
+loadImages ((t, (s, _)):xs) = (:) <$> fmap (\img -> (t, img))
+                                           (loadBitmap s) <*>
+                                      loadImages xs
 
-drawPlayer :: Picture ()
-drawPlayer = drawShape blue $ circle (width / 2, height / 2)
-                                     (width / blocks / 2 - 10)
+drawMap :: [(Tile, Bitmap)] -> Map -> Picture ()
+drawMap imgs (c, tiles) = drawTiles imgs tiles (mesh c)
+
+drawPlayer :: Maybe Bitmap -> Picture ()
+drawPlayer Nothing = drawShape blue $ circle (width / 2, height / 2)
+                                             (width / blocks / 2 - 10)
+drawPlayer (Just img) = drawScaled img playerRect
+  where
+    w = width / blocks
+    h = height / blocks
+    playerRect = Rect (width / 2 - w / 2) (height / 2 - h / 2) w h
 
 translateMap :: Double -> Double -> Picture () -> Picture ()
 translateMap x y picture = translate (x_i, y_i) picture
@@ -85,7 +86,7 @@ translateMap x y picture = translate (x_i, y_i) picture
 renderState :: Canvas -> Picture () -> Point -> IO ()
 renderState c picture (x, y) = render c $ do
     translateMap x y picture
-    drawPlayer
+    drawPlayer Nothing
 
 changeInnerHTML :: Elem -> String -> IO ()
 changeInnerHTML e s = setProp e "innerHTML" s

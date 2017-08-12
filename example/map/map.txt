@@ -9,20 +9,19 @@
 10 20 20 20 20 20 20 20
 10 10 10 10 10 10 10  1
 
-Start IMG map/Free.bmp
+Start IMG map/Start.png
 <p>This is the Start. Click on the edges of the canvas to move! :)</p>
+<p>If you only see a blue dot try refreshing the page ;)</p>
 END
 
-End IMG map/Free.bmp
+End IMG map/End.png
 <p>This is the End. Though nothing happened :/ What now?</p>
 END
 
-Free 0 IMG map/Free.bmp
+Free 1 IMG map/Free.png
 
-Wall 0 IMG map/Wall.bmp
-<p>This is the End. Though nothing happened :/ What now?</p>
-END
+Wall 1 IMG map/Wall.png
 
-Event 0 IMG map/Free.bmp
-<a target="_blank" href="https://rothfastigheter.se">important link ;)</a>
+Event 1 IMG map/Event.png
+<a target="_blank" href="https://google.se">important link ;)</a>
 END

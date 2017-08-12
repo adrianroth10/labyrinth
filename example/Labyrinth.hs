@@ -4,6 +4,7 @@ import Graphics
 import Map
 import Game
 
+import Haste
 import Haste.Ajax
 import Haste.DOM
 import Haste.Events
@@ -13,21 +14,23 @@ import Data.IORef
 whenLoaded :: Maybe String -> IO ()
 whenLoaded (Just mapStr) = do 
   case parseMap mapStr of
-    Just m -> do
+    Just (m, mInput) -> do
       Just ce <- elemById "canvas"
       Just c <- fromElem ce
-      Just divElem <- elemById "output"
+      Just outputElem <- elemById "output"
+      imgs <- loadImages mInput
+
       stateRef <- newIORef $ (startPoint m, False)
       onEvent ce
               Click $
-              movePlayer (renderState c (drawMap m)) 
+              movePlayer (renderState c (drawMap imgs m)) 
                          (((.) (validPoint m)) . updatePoint width height)
-                         (eventPoint m (changeInnerHTML divElem))
+                         (eventPoint m mInput (changeInnerHTML outputElem))
                          stateRef
-      renderState c (drawMap m) (startPoint m)
-      eventPoint m (changeInnerHTML divElem) (startPoint m)
-    Nothing -> error "Map parsing error"
-whenLoaded Nothing = error "Map not loaded"
+      renderState c (drawMap imgs m) (startPoint m)
+      eventPoint m mInput (changeInnerHTML outputElem) (startPoint m)
+    Nothing -> alert "Map parsing error"
+whenLoaded Nothing = alert "Map file not loaded"
 
 main :: IO ()
 main = do

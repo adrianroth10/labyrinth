@@ -15,20 +15,16 @@ import Data.List
 -- Point of player and a boolean if the player is moving
 type State = (Point, Bool)
 
-tileString :: Tile -> String
-tileString (Event _ s) = s
-tileString (Start _ s) = s
-tileString (End _ s) = s
-tileString _ = ""
-
-eventPoint :: Map -> (String -> IO ()) -> Point -> IO ()
-eventPoint (c, tiles) outputText (x, y) = outputText $ tileString $ tiles !! i
-  where i = floor $ x + c * y
+eventPoint :: Map -> [MapInput] -> (String -> IO ()) -> Point -> IO ()
+eventPoint (c, tiles) mapInput outputText (x, y) = outputText tileString
+  where
+    tile = tiles !! floor (x + c * y)
+    tileString = maybe "" snd (lookup tile mapInput)
 
 validPoint :: Map -> Point -> Maybe Point
 validPoint (c, tiles) (x, y)
   | x < 0 || y < 0 || x >= c || i >= length tiles = Nothing
-  | unTile (tiles !! i) == unTile (Wall "") = Nothing
+  | eqTile (tiles !! i) (Wall 1) = Nothing
   | otherwise = Just $ (x, y)
   where i = floor $ x + c * y
 
@@ -92,6 +88,6 @@ movePlayer renderState
 startPoint :: Map -> Point
 startPoint (c, tiles) = (x, y)
   where
-    (Just i) = elemIndex (unTile (Start "" "")) $ map unTile tiles
+    (Just i) = elemIndex Start tiles
     x = fromIntegral (mod i (floor c))
     y = fromInteger (floor ((realToFrac i) / c))
