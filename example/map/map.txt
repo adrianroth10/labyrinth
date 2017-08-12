@@ -10,8 +10,7 @@
 10 10 10 10 10 10 10  1
 
 Start IMG map/Start.png
-<p>This is the Start. Click on the edges of the canvas to move! :)</p>
-<p>If you only see a blue dot try refreshing the page ;)</p>
+<p>This is the Start. Click on the edges of the canvas to start! :)</p>
 END
 
 End IMG map/End.png
@@ -23,5 +22,5 @@ Free 1 IMG map/Free.png
 Wall 1 IMG map/Wall.png
 
 Event 1 IMG map/Event.png
-<a target="_blank" href="https://google.se">important link ;)</a>
+<p><a target="_blank" href="https://google.se">important link ;)</a></p>
 END

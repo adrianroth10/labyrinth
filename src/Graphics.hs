@@ -1,12 +1,12 @@
-module Graphics (width,
+module Graphics (module Map,
+                 Haste.Graphics.Canvas.Point,
+                 width,
                  height,
                  drawMap,
                  renderState,
-                 changeInnerHTML,
                  loadImages) where
 import Map
 
-import Haste.DOM
 import Haste.Graphics.Canvas
 
 --constants
@@ -83,10 +83,9 @@ translateMap x y picture = translate (x_i, y_i) picture
     x_i = -(x - (blocks - 1) / 2) * width / blocks
     y_i = -(y - (blocks - 1) / 2) * height / blocks
 
+
+---------------------------------Impure-------------------------------
 renderState :: Canvas -> Picture () -> Point -> IO ()
 renderState c picture (x, y) = render c $ do
     translateMap x y picture
     drawPlayer Nothing
-
-changeInnerHTML :: Elem -> String -> IO ()
-changeInnerHTML e s = setProp e "innerHTML" s
