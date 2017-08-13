@@ -1,6 +1,6 @@
 module Parser(Parser, digit, digitVal, chars, letter, err,
               lit, number, iter, accept, require, token,
-              spaces, word, (-#), (#-), (#), (>->), (!), return,
+              spaces, word, (-#), (#-), (#), (>->), (!), (?), return,
               line, var) where
 import Prelude hiding (return, fail)
 import Data.Char

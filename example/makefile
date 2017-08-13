@@ -4,7 +4,7 @@ MAIN = Main.hs
 
 all: run
 
-labyrinth.js: Labyrinth.hs Graphics.hs Map.hs Game.hs Parser.hs
+labyrinth.js: Labyrinth.hs Game.hs Graphics.hs World.hs Parser.hs
 	hastec -Wall -fno-warn-unused-do-bind -o $@ $^
 
 run: labyrinth.js

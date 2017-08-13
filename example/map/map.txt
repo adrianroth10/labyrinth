@@ -1,4 +1,4 @@
-8
+Map 1
 8
 10 10 10 10 10 10 10 30
 10 20 20 20 20 20 20 20
@@ -8,13 +8,18 @@
 30 10 10 10 10 30 10 10
 10 20 20 20 20 20 20 20
 10 10 10 10 10 10 10  1
+END
 
 Start IMG map/Start.png
-<p>This is the Start. Click on the edges of the canvas to start! :)</p>
+	HTMLText
+		<p>This is the Start. Click on the edges of the canvas to start! :)</p>
+	END
 END
 
 End IMG map/End.png
-<p>This is the End. Though nothing happened :/ What now?</p>
+	HTMLText
+		<p>This is the End. Though nothing happened :/ What now?</p>
+	END
 END
 
 Free 1 IMG map/Free.png
@@ -22,5 +27,7 @@ Free 1 IMG map/Free.png
 Wall 1 IMG map/Wall.png
 
 Event 1 IMG map/Event.png
-<p><a target="_blank" href="https://google.se">important link ;)</a></p>
+	HTMLText
+		<p><a target="_blank" href="https://google.se">important link ;)</a></p>
+	END
 END
