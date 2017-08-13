@@ -9,12 +9,11 @@ import Haste.Events
 import Data.IORef
 import Data.List
 
--- Point of player and a boolean if the player is moving
-type MapState = (Point, MapType, Picture ())
+type MapState = (MapContent', Point, Picture ())
 data Mode = Normal | Locked deriving Eq
-data State = State Mode MapState
+type State = (Mode, MapState)
 
-validPoint :: MapType -> Point -> Maybe Point
+validPoint :: MapContent' -> Point -> Maybe Point
 validPoint (c, tiles) (x, y)
   | x < 0 || y < 0 || x >= c || i >= length tiles = Nothing
   | eqTile (tiles !! i) (Wall 1) = Nothing
@@ -46,63 +45,77 @@ interPoints (x1, y1) (x2, y2) = (take (floor nInterPoints) $ zip
     xdiff = (x2 - x1) / nInterPoints
     ydiff = (y2 - y1) / nInterPoints
 
-startPoint :: MapType -> Point
+startPoint :: MapContent' -> Point
 startPoint (c, tiles) = (x, y)
   where
     (Just i) = elemIndex Start tiles
     x = fromIntegral (mod i (floor c))
     y = fromInteger (floor ((realToFrac i) / c))
 
+startMap :: World -> MapContent'
+startMap [] = error "No start found"
+startMap ((_, MapContent (c, tiles)):xti)
+  | elem Start tiles = (c, tiles)
+  | otherwise = startMap xti
+startMap (_:xti) = startMap xti
 
 ---------------------------------Impure-------------------------------
-eventPoint :: MapType -> [MapInput] -> (String -> IO ()) -> Point -> IO ()
-eventPoint (c, tiles) mapInput outputText (x, y) = outputText tileString
+eventPoint' :: EventItem -> IORef State -> IO ()
+eventPoint' (EventItemList _) _ = return ()
+eventPoint' (Text _) _ = return ()
+eventPoint' (HTMLText s) _ = changeOutputHTML s
+eventPoint' NoEvent _ = changeOutputHTML ""
+
+
+eventPoint :: MapContent' -> World -> Point -> IORef State -> IO ()
+eventPoint (c, tiles) world (x, y) stateRef =
+                                                 eventPoint' e stateRef
   where
     tile = tiles !! floor (x + c * y)
-    tileString = maybe "" snd (lookup tile mapInput)
+    Just (TileItem _ e) = lookup tile world
 
 animateMovePlayer :: IORef State -> (Point -> IO ()) -> [Point] -> IO ()
 animateMovePlayer stateRef _ []  = do
-  State _ (p, m, mPicture) <- readIORef stateRef
-  writeIORef stateRef $ State Normal (p, m, mPicture)
+  (_, (m, p, mPicture)) <- readIORef stateRef
+  writeIORef stateRef (Normal, (m, p, mPicture))
   return ()
 animateMovePlayer stateRef renderState' (nextState:xs)  = do
   renderState' nextState
   setTimer (Once 10) (animateMovePlayer stateRef renderState' xs)
   return ()
 
-movePlayer :: [MapInput] -> MapState -> IORef State -> (Int, Int) -> IO ()
-movePlayer mInput (p, m, mPicture) stateRef mousePos = do
+movePlayer :: World -> MapState -> IORef State -> (Int, Int) -> IO ()
+movePlayer world (m, p, mPicture) stateRef mousePos = do
   case validPoint m (updatePoint mousePos p) of
     Just p' -> do 
-      writeIORef stateRef $ State Locked (p', m, mPicture)
+      writeIORef stateRef (Locked, (m, p', mPicture))
       animateMovePlayer stateRef (renderState mPicture) (interPoints p p')
-      eventPoint m mInput changeOutputHTML p'
+      eventPoint m world p' stateRef
     Nothing -> return ()
   
 
-onClick :: [MapInput] -> [(Tile, Bitmap)] ->
+onClick :: World -> [(Tile, Bitmap)] ->
            IORef State -> MouseData -> IO ()
-onClick mInput _ stateRef (MouseData mousePos _ _) = do
-  State gameState mapState <- readIORef stateRef 
-  case gameState of
-    Normal -> movePlayer mInput mapState stateRef mousePos
+onClick world _ stateRef (MouseData mousePos _ _) = do
+  (mode, mapState) <- readIORef stateRef 
+  case mode of
+    Normal -> movePlayer world mapState stateRef mousePos
     Locked -> return ()
 
 play :: Maybe String -> IO ()
 play (Just mapStr) = do 
-  case parseMap mapStr of
-    Just (m, mInput) -> do
+  case parseWorld mapStr of
+    Just world -> do
       Just ce <- elemById "canvas"
-      imgs <- loadImages mInput
+      imgs <- loadImages world
+      let sMap = startMap world
+      let sPoint = startPoint sMap
+      let sPicture = drawMap imgs sMap
 
-      stateRef <- newIORef $ State Normal
-                                  ((startPoint m), m, (drawMap imgs m))
-      onEvent ce
-              Click $
-              onClick mInput imgs stateRef
-      renderState (drawMap imgs m) (startPoint m)
-      eventPoint m mInput changeOutputHTML (startPoint m)
+      stateRef <- newIORef (Normal, (sMap, sPoint, sPicture))
+      onEvent ce Click $ onClick world imgs stateRef
+      renderState sPicture sPoint
+      eventPoint sMap world sPoint stateRef
     Nothing -> alert "Map parsing error"
 play Nothing = alert "Map file not loaded"
 

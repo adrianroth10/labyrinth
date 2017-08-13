@@ -1,4 +1,4 @@
-module Graphics (module Map,
+module Graphics (module World,
                  Haste.Graphics.Canvas.Point,
                  Haste.Graphics.Canvas.Picture,
                  Haste.Graphics.Canvas.Bitmap,
@@ -7,7 +7,7 @@ module Graphics (module Map,
                  drawMap,
                  renderState,
                  loadImages) where
-import Map
+import World
 
 import Haste.Graphics.Canvas
 
@@ -34,7 +34,7 @@ shapeCircle (Rect x y w h) = circle (x + w / 2, y + h / 2)
                                     (min (w / 2) (h / 2))
 shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
 
--- Either all tiles have bitmaps or no tiles
+-- Either all tiles have bitmaps or no tiles, CHANGE!!
 drawTile :: [(Tile, Bitmap)] -> Tile -> Rect -> Picture ()
 drawTile [] Start = drawShape yellow . shapeCircle
 drawTile [] End = drawShape green . shapeCircle
@@ -60,14 +60,7 @@ mesh c = map (\(x, y) -> Rect x y w h) points
     coordinates = [(x, y) | y <- [0..c - 1], x <- [0..c - 1]]
     points = map (pointMul (w, h)) coordinates
 
-loadImages :: [MapInput] -> IO [(Tile, Bitmap)]
-loadImages [] = return []
-loadImages ((_, ("", _)):xs) = loadImages xs
-loadImages ((t, (s, _)):xs) = (:) <$> fmap (\img -> (t, img))
-                                           (loadBitmap s) <*>
-                                      loadImages xs
-
-drawMap :: [(Tile, Bitmap)] -> MapType -> Picture ()
+drawMap :: [(Tile, Bitmap)] -> MapContent' -> Picture ()
 drawMap imgs (c, tiles) = drawTiles imgs tiles (mesh c)
 
 drawPlayer :: Maybe Bitmap -> Picture ()
@@ -86,10 +79,18 @@ translateMap x y picture = translate (x_i, y_i) picture
     y_i = -(y - (blocks - 1) / 2) * height / blocks
 
 
----------------------------------Impure-------------------------------
+---------------------------------Impure--------------------------------
+loadImages :: World -> IO [(Tile, Bitmap)]
+loadImages [] = return []
+loadImages ((_, TileItem "" _):xti) = loadImages xti
+loadImages ((t, TileItem s _):xti) = (:) <$> fmap (\img -> (t, img))
+                                             (loadBitmap s) <*>
+                                             loadImages xti
+loadImages ((_, MapContent _):xti) = loadImages xti
+
 renderState :: Picture () -> Point -> IO ()
-renderState picture (x, y) = do 
+renderState mapPicture (x, y) = do 
   Just c <- getCanvasById "canvas"
   render c $ do
-    translateMap x y picture
+    translateMap x y mapPicture
     drawPlayer Nothing
