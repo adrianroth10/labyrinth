@@ -1,5 +1,7 @@
 module Graphics (module Map,
                  Haste.Graphics.Canvas.Point,
+                 Haste.Graphics.Canvas.Picture,
+                 Haste.Graphics.Canvas.Bitmap,
                  width,
                  height,
                  drawMap,
@@ -65,7 +67,7 @@ loadImages ((t, (s, _)):xs) = (:) <$> fmap (\img -> (t, img))
                                            (loadBitmap s) <*>
                                       loadImages xs
 
-drawMap :: [(Tile, Bitmap)] -> Map -> Picture ()
+drawMap :: [(Tile, Bitmap)] -> MapType -> Picture ()
 drawMap imgs (c, tiles) = drawTiles imgs tiles (mesh c)
 
 drawPlayer :: Maybe Bitmap -> Picture ()
@@ -85,7 +87,9 @@ translateMap x y picture = translate (x_i, y_i) picture
 
 
 ---------------------------------Impure-------------------------------
-renderState :: Canvas -> Picture () -> Point -> IO ()
-renderState c picture (x, y) = render c $ do
+renderState :: Picture () -> Point -> IO ()
+renderState picture (x, y) = do 
+  Just c <- getCanvasById "canvas"
+  render c $ do
     translateMap x y picture
     drawPlayer Nothing
