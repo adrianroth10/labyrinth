@@ -4,8 +4,11 @@ module Graphics (Haste.Graphics.Canvas.Point,
                  Imgs,
                  width,
                  height,
+                 fullBlack,
+                 fullWhite,
                  drawMap,
                  renderState,
+                 renderStateOnTop,
                  loadImages) where
 import World
 
@@ -30,6 +33,16 @@ yellow = color $ RGB 255 255 0
 green = color $ RGB 0 255 0
 blue = color $ RGBA 0 0 255 0.5
 
+fullRect :: Rect
+fullRect = Rect 0 0 width height
+
+fullBlack :: Double -> Picture ()
+fullBlack a = drawShape (color (RGBA 0 0 0 a))
+                        (shapeRect fullRect)
+fullWhite :: Double -> Picture ()
+fullWhite a = drawShape (color (RGBA 255 255 255 a))
+                        (shapeRect fullRect)
+
 drawShape :: (Picture () -> Picture ()) -> Shape () -> Picture ()
 drawShape col = col . fill
 
@@ -38,6 +51,7 @@ shapeCircle (Rect x y w h) = circle (x + w / 2, y + h / 2)
                                     (min (w / 2) (h / 2))
 shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
 
+-- If no image has been specified
 drawTile' :: Tile -> Rect -> Picture ()
 drawTile' Start = drawShape yellow . shapeCircle
 drawTile' End = drawShape green . shapeCircle
@@ -86,7 +100,6 @@ translateMap x y picture = translate (x_i, y_i) picture
     x_i = -(x - (blocks - 1) / 2) * width / blocks
     y_i = -(y - (blocks - 1) / 2) * height / blocks
 
-
 ---------------------------------Impure--------------------------------
 loadImages :: World -> IO Imgs
 loadImages [] = return []
@@ -95,6 +108,11 @@ loadImages ((t, TileItem s _):xti) = (:) <$> fmap (\img -> (t, img))
                                              (loadBitmap s) <*>
                                              loadImages xti
 loadImages ((_, MapContent _):xti) = loadImages xti
+
+renderStateOnTop :: Picture () -> IO ()
+renderStateOnTop picture = do 
+  Just c <- getCanvasById "canvas"
+  renderOnTop c picture
 
 renderState :: Picture () -> Point -> IO ()
 renderState mapPicture (x, y) = do 

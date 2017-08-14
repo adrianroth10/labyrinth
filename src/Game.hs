@@ -61,17 +61,40 @@ startMap ((_, MapContent (c, tiles)):xti)
 startMap (_:xti) = startMap xti
 
 ---------------------------------Impure-------------------------------
+
+animateFades :: (Double -> Picture ()) ->
+                [(IO (), [Double])] ->
+                IORef State -> IO ()
+animateFades _ [] stateRef = do
+  (_, (m, p, mPicture)) <- readIORef stateRef
+  writeIORef stateRef (Normal, (m, p, mPicture))
+  return ()
+animateFades fader ((_, []):xRS) stateRef =
+                                        animateFades fader xRS stateRef
+animateFades fader ((renderState', (fadeLevel:xFL)):xRS) stateRef = do
+    renderState'
+    renderStateOnTop $ fader fadeLevel
+    setTimer (Once 20) (animateFades fader
+                                     ((renderState', xFL):xRS)
+                                     stateRef)
+    return ()
+
 eventPoint' :: World -> Imgs -> EventItem -> IORef State -> IO ()
 eventPoint' _ _ (EventItemList _) _ = return ()
 eventPoint' _ _ (Text _) _ = return ()
 eventPoint' _ _ (HTMLText s) _ = changeOutputHTML s
-eventPoint' world imgs (Teleport m p) stateRef = do
-  (mode, _) <- readIORef stateRef
-  writeIORef stateRef (mode, (newMap, p, newPicture))
-  renderState newPicture p
+eventPoint' world imgs (Teleport m p') stateRef = do
+  (_, (_, p, picture)) <- readIORef stateRef
+  writeIORef stateRef (Locked, (newMap, p', newPicture))
+  animateFades fullBlack [(renderState picture p, fadeOut),
+                          (renderState newPicture p', fadeIn)] stateRef
+  return ()
     where
       Just (MapContent newMap) = lookup m world
       newPicture = drawMap imgs newMap
+      fades = 10
+      fadeOut = map (/fades) [0..fades]
+      fadeIn = tail $ reverse fadeOut
 eventPoint' _ _ NoEvent _ = changeOutputHTML ""
 
 
