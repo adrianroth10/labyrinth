@@ -1,5 +1,6 @@
 module Game (play) where
 
+import World
 import Graphics
 
 import Haste
@@ -68,20 +69,21 @@ eventPoint' NoEvent _ = changeOutputHTML ""
 
 
 eventPoint :: MapContent' -> World -> Point -> IORef State -> IO ()
-eventPoint (c, tiles) world (x, y) stateRef =
-                                                 eventPoint' e stateRef
+eventPoint (c, tiles) world (x, y) stateRef = eventPoint' e stateRef
   where
     tile = tiles !! floor (x + c * y)
     Just (TileItem _ e) = lookup tile world
 
-animateMovePlayer :: IORef State -> (Point -> IO ()) -> [Point] -> IO ()
-animateMovePlayer stateRef _ []  = do
+animateMovePlayer :: World -> IORef State -> (Point -> IO ()) ->
+                     [Point] -> IO ()
+animateMovePlayer world stateRef _ []  = do
   (_, (m, p, mPicture)) <- readIORef stateRef
   writeIORef stateRef (Normal, (m, p, mPicture))
+  eventPoint m world p stateRef
   return ()
-animateMovePlayer stateRef renderState' (nextState:xs)  = do
+animateMovePlayer world stateRef renderState' (nextState:xs)  = do
   renderState' nextState
-  setTimer (Once 10) (animateMovePlayer stateRef renderState' xs)
+  setTimer (Once 10) (animateMovePlayer world stateRef renderState' xs)
   return ()
 
 movePlayer :: World -> MapState -> IORef State -> (Int, Int) -> IO ()
@@ -89,8 +91,8 @@ movePlayer world (m, p, mPicture) stateRef mousePos = do
   case validPoint m (updatePoint mousePos p) of
     Just p' -> do 
       writeIORef stateRef (Locked, (m, p', mPicture))
-      animateMovePlayer stateRef (renderState mPicture) (interPoints p p')
-      eventPoint m world p' stateRef
+      animateMovePlayer world stateRef
+                        (renderState mPicture) (interPoints p p')
     Nothing -> return ()
   
 
@@ -103,8 +105,8 @@ onClick world _ stateRef (MouseData mousePos _ _) = do
     Locked -> return ()
 
 play :: Maybe String -> IO ()
-play (Just mapStr) = do 
-  case parseWorld mapStr of
+play (Just worldStr) = do 
+  case parseWorld worldStr of
     Just world -> do
       Just ce <- elemById "canvas"
       imgs <- loadImages world

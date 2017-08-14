@@ -10,23 +10,23 @@ Map 1
 10 10 10 10 10 10 10  1
 END
 
-Start IMG map/Start.png
+Start IMG world/Start.png
 	HTMLText
-		<p>This is the Start. Click on the edges of the canvas to start! :)</p>
+		<p>This is the Start. Click on the edges of the canvas to move! :)</p>
 	END
 END
 
-End IMG map/End.png
+End IMG world/End.png
 	HTMLText
 		<p>This is the End. Though nothing happened :/ What now?</p>
 	END
 END
 
-Free 1 IMG map/Free.png
+Free 1 IMG world/Free.png
 
-Wall 1 IMG map/Wall.png
+Wall 1 IMG world/Wall.png
 
-Event 1 IMG map/Event.png
+Event 1 IMG world/Event.png
 	HTMLText
 		<p><a target="_blank" href="https://google.se">important link ;)</a></p>
 	END

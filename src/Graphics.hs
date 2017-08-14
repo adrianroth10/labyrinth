@@ -1,5 +1,4 @@
-module Graphics (module World,
-                 Haste.Graphics.Canvas.Point,
+module Graphics (Haste.Graphics.Canvas.Point,
                  Haste.Graphics.Canvas.Picture,
                  Haste.Graphics.Canvas.Bitmap,
                  width,
@@ -10,6 +9,8 @@ module Graphics (module World,
 import World
 
 import Haste.Graphics.Canvas
+
+import Data.Maybe
 
 --constants
 width, height, blocks :: Double
@@ -34,15 +35,19 @@ shapeCircle (Rect x y w h) = circle (x + w / 2, y + h / 2)
                                     (min (w / 2) (h / 2))
 shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
 
--- Either all tiles have bitmaps or no tiles, CHANGE!!
+drawTile' :: Tile -> Rect -> Picture ()
+drawTile' Start = drawShape yellow . shapeCircle
+drawTile' End = drawShape green . shapeCircle
+drawTile' (Free _) = drawShape black . shapeCircle
+drawTile' (Wall _) = drawShape white . shapeRect
+drawTile' (Event _) = drawShape red . shapeCircle
+drawTile' (Map _) = error "Cannot be drawn from tile info"
+
 drawTile :: [(Tile, Bitmap)] -> Tile -> Rect -> Picture ()
-drawTile [] Start = drawShape yellow . shapeCircle
-drawTile [] End = drawShape green . shapeCircle
-drawTile [] (Free _) = drawShape black . shapeCircle
-drawTile [] (Wall _) = drawShape white . shapeRect
-drawTile [] (Event _) = drawShape red . shapeCircle
-drawTile imgs tile = drawScaled img
-  where Just img = lookup tile imgs
+drawTile imgs tile 
+  | isJust img = drawScaled (fromJust img)
+  | otherwise  = drawTile' tile
+  where img = lookup tile imgs
 
 drawTiles :: [(Tile, Bitmap)] -> [Tile] -> [Rect] -> Picture ()
 drawTiles _ [] _ = return ()

@@ -6,4 +6,4 @@ import Haste.Ajax
 main :: IO ()
 main = do
   -- Loading the map
-  ajaxRequest GET "map/map.txt" noParams play
+  ajaxRequest GET "world/world.txt" noParams play

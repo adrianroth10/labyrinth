@@ -12,6 +12,7 @@ err message cs = error (message++" near "++cs++"\n")
 iter :: Parser a -> Parser [a]  
 iter m = m # iter m >-> cons ! return [] 
 
+cons :: (a, [a]) -> [a]
 cons(a, b) = a:b
 
 (-#) :: Parser a -> Parser b -> Parser b
@@ -79,8 +80,8 @@ char (c:cs) = Just (c, cs)
 return :: a -> Parser a
 return a cs = Just (a, cs)
 
-fail ::  Parser a 
-fail cs = Nothing
+--fail ::  Parser a 
+--fail _ = Nothing
 
 (!) :: Parser a -> Parser a -> Parser a
 (m ! n) cs = case m cs of
