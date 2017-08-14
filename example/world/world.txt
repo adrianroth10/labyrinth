@@ -1,6 +1,6 @@
 Map 1
 8
-10 10 10 10 10 10 10 30
+10 10 10 10 10 10 10 31
 10 20 20 20 20 20 20 20
 30 10 10 30 10 10 20 30
 10 20 20  0 20 10 20 10
@@ -8,6 +8,18 @@ Map 1
 30 10 10 10 10 30 10 10
 10 20 20 20 20 20 20 20
 10 10 10 10 10 10 10  1
+END
+
+Map 2
+3
+32 10 10 
+10 20 10 
+10 20 10 
+10 20 10 
+10 20 10 
+10 20 10 
+10 20 10 
+10 10 30 
 END
 
 Start IMG world/Start.png
@@ -30,4 +42,12 @@ Event 1 IMG world/Event.png
 	HTMLText
 		<p><a target="_blank" href="https://google.se">important link ;)</a></p>
 	END
+END
+
+Event 2 IMG world/Event.png
+	Teleport Map 2 Point 0 0
+END
+
+Event 3 IMG world/Event.png
+	Teleport Map 1 Point 7 0
 END

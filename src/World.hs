@@ -2,7 +2,7 @@ module World (World,
             Tile (Free, Start, End, Wall, Event, Map),
             TileItem (MapContent, TileItem),
             MapContent',
-            EventItem (NoEvent, Text, HTMLText, EventItemList),
+            EventItem (NoEvent, Text, HTMLText, Teleport, EventItemList),
             eqTile,
             parseWorld) where
 
@@ -15,7 +15,10 @@ data Tile = Start | End | Free Integer |
 data TileItem = MapContent (Double, [Tile]) |
                 TileItem String EventItem deriving (Eq, Show)
 type MapContent' = (Double, [Tile])
-data EventItem = NoEvent | Text String | HTMLText String |
+data EventItem = NoEvent |
+                 Text String |
+                 HTMLText String |
+                 Teleport Tile (Double, Double) |
                  EventItemList [EventItem] deriving (Eq, Show)
 
 end :: String
@@ -51,7 +54,13 @@ inputContent = accept "END" -# Parser.return [] !
 
 parseEvent :: Parser EventItem
 parseEvent = accept "Text" -# inputContent >-> (Text . unlines) !
-             accept "HTMLText" -# inputContent >-> (HTMLText . unlines)
+
+           accept "HTMLText" -# inputContent >-> (HTMLText . unlines) !
+
+             accept "Teleport" -# accept "Map" -# number #-
+             accept "Point" # (number >-> fromInteger) # 
+             (number >-> fromInteger) >->
+             (\((n, x), y) -> Teleport (Map n) (x, y))
 
 formatEvents :: [EventItem] -> EventItem
 formatEvents [] = NoEvent

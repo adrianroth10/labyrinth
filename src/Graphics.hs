@@ -1,6 +1,7 @@
 module Graphics (Haste.Graphics.Canvas.Point,
                  Haste.Graphics.Canvas.Picture,
                  Haste.Graphics.Canvas.Bitmap,
+                 Imgs,
                  width,
                  height,
                  drawMap,
@@ -11,6 +12,8 @@ import World
 import Haste.Graphics.Canvas
 
 import Data.Maybe
+
+type Imgs = [(Tile, Bitmap)]
 
 --constants
 width, height, blocks :: Double
@@ -43,13 +46,13 @@ drawTile' (Wall _) = drawShape white . shapeRect
 drawTile' (Event _) = drawShape red . shapeCircle
 drawTile' (Map _) = error "Cannot be drawn from tile info"
 
-drawTile :: [(Tile, Bitmap)] -> Tile -> Rect -> Picture ()
+drawTile :: Imgs -> Tile -> Rect -> Picture ()
 drawTile imgs tile 
   | isJust img = drawScaled (fromJust img)
   | otherwise  = drawTile' tile
   where img = lookup tile imgs
 
-drawTiles :: [(Tile, Bitmap)] -> [Tile] -> [Rect] -> Picture ()
+drawTiles :: Imgs -> [Tile] -> [Rect] -> Picture ()
 drawTiles _ [] _ = return ()
 drawTiles _ _ [] = return ()
 drawTiles imgs (t:ts) (r:rs) = do
@@ -62,10 +65,10 @@ mesh c = map (\(x, y) -> Rect x y w h) points
     w = width / blocks
     h = height / blocks
     pointMul (x1, y1) (x2, y2) = (x1 * x2, y1 * y2)
-    coordinates = [(x, y) | y <- [0..c - 1], x <- [0..c - 1]]
+    coordinates = [(x, y) | y <- [0..], x <- [0..c - 1]]
     points = map (pointMul (w, h)) coordinates
 
-drawMap :: [(Tile, Bitmap)] -> MapContent' -> Picture ()
+drawMap :: Imgs -> MapContent' -> Picture ()
 drawMap imgs (c, tiles) = drawTiles imgs tiles (mesh c)
 
 drawPlayer :: Maybe Bitmap -> Picture ()
@@ -85,7 +88,7 @@ translateMap x y picture = translate (x_i, y_i) picture
 
 
 ---------------------------------Impure--------------------------------
-loadImages :: World -> IO [(Tile, Bitmap)]
+loadImages :: World -> IO Imgs
 loadImages [] = return []
 loadImages ((_, TileItem "" _):xti) = loadImages xti
 loadImages ((t, TileItem s _):xti) = (:) <$> fmap (\img -> (t, img))
