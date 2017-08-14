@@ -11,7 +11,7 @@ import Data.IORef
 import Data.List
 
 type MapState = (MapContent', Point, Picture ())
-data Mode = Normal | Locked deriving Eq
+data Mode = Normal | TextEvent String | Locked deriving Eq
 type State = (Mode, MapState)
 
 validPoint :: MapContent' -> Point -> Maybe Point
@@ -79,10 +79,22 @@ animateFades fader ((renderState', (fadeLevel:xFL)):xRS) stateRef = do
                                      stateRef)
     return ()
 
+-------------------------------Events----------------------------------
 eventPoint' :: World -> Imgs -> EventItem -> IORef State -> IO ()
 eventPoint' _ _ (EventItemList _) _ = return ()
-eventPoint' _ _ (Text _) _ = return ()
+
+eventPoint' _ _ (Text "") stateRef = do
+  (_, (m, p, picture)) <- readIORef stateRef
+  writeIORef stateRef (Normal, (m, p, picture))
+  renderState picture p
+eventPoint' _ _ (Text s) stateRef = do
+  (_, m) <- readIORef stateRef
+  renderStateOnTop $ drawText s
+  writeIORef stateRef (TextEvent s', m)
+    where s' = restText $ restText s
+
 eventPoint' _ _ (HTMLText s) _ = changeOutputHTML s
+
 eventPoint' world imgs (Teleport m p') stateRef = do
   (_, (_, p, picture)) <- readIORef stateRef
   writeIORef stateRef (Locked, (newMap, p', newPicture))
@@ -95,7 +107,8 @@ eventPoint' world imgs (Teleport m p') stateRef = do
       fades = 10
       fadeOut = map (/fades) [0..fades]
       fadeIn = tail $ reverse fadeOut
-eventPoint' _ _ NoEvent _ = changeOutputHTML ""
+
+eventPoint' _ _ NoEvent _ = return ()
 
 
 eventPoint :: World -> Imgs -> MapContent' -> Point -> IORef State -> IO ()
@@ -104,6 +117,7 @@ eventPoint world imgs (c, tiles) (x, y) stateRef =
   where
     tile = tiles !! floor (x + c * y)
     Just (TileItem _ e) = lookup tile world
+-----------------------------------------------------------------------
 
 animateMovePlayer :: World -> Imgs -> IORef State -> (Point -> IO ()) ->
                      [Point] -> IO ()
@@ -130,8 +144,10 @@ movePlayer world imgs (m, p, mPicture) stateRef mousePos = do
 onClick :: World -> Imgs -> IORef State -> MouseData -> IO ()
 onClick world imgs stateRef (MouseData mousePos _ _) = do
   (mode, mapState) <- readIORef stateRef 
+  changeOutputHTML ""
   case mode of
     Normal -> movePlayer world imgs mapState stateRef mousePos
+    TextEvent s -> eventPoint' world imgs (Text s) stateRef
     Locked -> return ()
 
 play :: Maybe String -> IO ()

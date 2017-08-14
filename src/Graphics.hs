@@ -7,6 +7,8 @@ module Graphics (Haste.Graphics.Canvas.Point,
                  fullBlack,
                  fullWhite,
                  drawMap,
+                 restText,
+                 drawText,
                  renderState,
                  renderStateOnTop,
                  loadImages) where
@@ -33,6 +35,69 @@ yellow = color $ RGB 255 255 0
 green = color $ RGB 0 255 0
 blue = color $ RGBA 0 0 255 0.5
 
+drawShape :: (Picture () -> Picture ()) -> Shape () -> Picture ()
+drawShape col = col . fill
+
+shapeCircle, shapeRect:: Rect -> Shape ()
+shapeCircle (Rect x y w h) = circle (x + w / 2, y + h / 2)
+                                    (min (w / 2) (h / 2))
+shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
+
+
+-------------------------DrawText--------------------------------------
+padding :: Double
+padding = 10
+textRect :: Rect
+textRect = Rect padding (height - height / 5)
+                (width - 2 * padding) (height / 5 - padding)
+drawTextBox :: Picture ()
+drawTextBox = do
+  drawShape white $ rect (rect_x textRect + padding, rect_y textRect)
+                         (rect_x textRect + rect_w textRect - padding,
+                          rect_y textRect + rect_h textRect)
+  drawShape white $ rect (rect_x textRect, rect_y textRect + padding)
+                         (rect_x textRect + rect_w textRect,
+                          rect_y textRect + rect_h textRect - padding)
+  drawShape white $ circle (rect_x textRect + padding,
+                            rect_y textRect + padding) padding
+  drawShape white $ circle 
+                          (rect_x textRect + rect_w textRect - padding,
+                           rect_y textRect + padding) padding
+  drawShape white $ circle 
+                          (rect_x textRect + rect_w textRect - padding,
+                           rect_y textRect + rect_h textRect - padding)
+                          padding
+  drawShape white $ circle 
+                          (rect_x textRect + padding,
+                           rect_y textRect + rect_h textRect - padding)
+                          padding
+  stroke $ rect (rect_x textRect + padding,
+                 rect_y textRect + padding)
+                (rect_x textRect + rect_w textRect - padding,
+                 rect_y textRect + rect_h textRect - padding)
+
+textPoint1, textPoint2 :: Point
+textPoint1 = (3 * padding, rect_y textRect + 3.5 * padding)
+textPoint2 = (3 * padding, rect_y textRect + rect_h textRect / 2 + 2.5 * padding)
+
+textLim, restText :: String -> String
+textLim s
+  | length s > maxLength = reverse $ tail $ dropWhile (/=' ') $ reverse $ take maxLength s
+  | otherwise = s
+    where maxLength = 45
+restText s = drop (length (textLim s) + 1) s
+
+drawText :: String -> Picture ()
+drawText s = do
+  drawTextBox
+  font "20px italic Monospace" $ text textPoint1 s'
+  font "20px italic Monospace" $ text textPoint2 s''
+    where
+      s' = textLim s
+      s'' = textLim $ restText s
+-----------------------------------------------------------------------
+
+---------------------------Fading--------------------------------------
 fullRect :: Rect
 fullRect = Rect 0 0 width height
 
@@ -42,15 +107,9 @@ fullBlack a = drawShape (color (RGBA 0 0 0 a))
 fullWhite :: Double -> Picture ()
 fullWhite a = drawShape (color (RGBA 255 255 255 a))
                         (shapeRect fullRect)
+-----------------------------------------------------------------------
 
-drawShape :: (Picture () -> Picture ()) -> Shape () -> Picture ()
-drawShape col = col . fill
-
-shapeCircle, shapeRect:: Rect -> Shape ()
-shapeCircle (Rect x y w h) = circle (x + w / 2, y + h / 2)
-                                    (min (w / 2) (h / 2))
-shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
-
+---------------------------DrawMap-------------------------------------
 -- If no image has been specified
 drawTile' :: Tile -> Rect -> Picture ()
 drawTile' Start = drawShape yellow . shapeCircle
@@ -84,6 +143,7 @@ mesh c = map (\(x, y) -> Rect x y w h) points
 
 drawMap :: Imgs -> MapContent' -> Picture ()
 drawMap imgs (c, tiles) = drawTiles imgs tiles (mesh c)
+-----------------------------------------------------------------------
 
 drawPlayer :: Maybe Bitmap -> Picture ()
 drawPlayer Nothing = drawShape blue $ circle (width / 2, height / 2)
