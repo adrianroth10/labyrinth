@@ -7,7 +7,7 @@ module Graphics (Haste.Graphics.Canvas.Point,
                  fullBlack,
                  fullWhite,
                  drawMap,
-                 restText,
+                 parseDrawText,
                  drawText,
                  renderState,
                  renderStateOnTop,
@@ -78,23 +78,28 @@ drawTextBox = do
 
 textPoint1, textPoint2 :: Point
 textPoint1 = (3 * padding, rect_y textRect + 3.5 * padding)
-textPoint2 = (3 * padding, rect_y textRect + rect_h textRect / 2 + 2.5 * padding)
+textPoint2 = (3 * padding,
+              rect_y textRect + rect_h textRect / 2 + 2.5 * padding)
 
-textLim, restText :: String -> String
-textLim s
-  | length s > maxLength = reverse $ tail $ dropWhile (/=' ') $ reverse $ take maxLength s
-  | otherwise = s
+parseDrawText' :: String -> [[String]] -> (String, String)
+parseDrawText' "" [] = ("", "")
+parseDrawText' ps [] = (ps, "")
+parseDrawText' ps [[]] = (ps, "")
+parseDrawText' ps ([]:xs) = (ps, unlines (map unwords xs))
+parseDrawText' [] ((w:ws):xs) = parseDrawText' w (ws:xs)
+parseDrawText' ps ((w:ws):xs) 
+  | length ps + length w < maxLength = parseDrawText' (ps ++ " " ++ w) (ws:xs)
+  | otherwise = (ps, unlines (map unwords ((w:ws):xs)))
     where maxLength = 45
-restText s = drop (length (textLim s) + 1) s
 
-drawText :: String -> Picture ()
-drawText s = do
+parseDrawText :: String -> (String, String)
+parseDrawText = parseDrawText' "" . map words . lines
+
+drawText :: (String, String) -> Picture ()
+drawText (s1, s2) = do
   drawTextBox
-  font "20px italic Monospace" $ text textPoint1 s'
-  font "20px italic Monospace" $ text textPoint2 s''
-    where
-      s' = textLim s
-      s'' = textLim $ restText s
+  font "20px italic Monospace" $ text textPoint1 s1
+  font "20px italic Monospace" $ text textPoint2 s2
 -----------------------------------------------------------------------
 
 ---------------------------Fading--------------------------------------

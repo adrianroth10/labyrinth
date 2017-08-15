@@ -54,6 +54,11 @@ END
 
 Event 4 IMG world/Event.png
 	Text
-		This is a test, but it is also a text. I promise you it can be both. Now I have definetely written enough!
+		This is a test, but it is also a text. I promise you it can be both.
+		Heeellooo!!
+		Now I have definetely written enough!
+	END
+	HTMLText
+		<p><a target="_blank" href="https://google.se">important link ;)</a></p>
 	END
 END

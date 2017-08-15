@@ -81,7 +81,18 @@ animateFades fader ((renderState', (fadeLevel:xFL)):xRS) stateRef = do
 
 -------------------------------Events----------------------------------
 eventPoint' :: World -> Imgs -> EventItem -> IORef State -> IO ()
-eventPoint' _ _ (EventItemList _) _ = return ()
+eventPoint' _ _ (EventItemList []) _ = return ()
+eventPoint' world imgs (EventItemList (nextEvent:xs)) stateRef = do
+  (mode, _) <- readIORef stateRef
+  case mode of
+    Normal -> do 
+      eventPoint' world imgs nextEvent stateRef
+      eventPoint' world imgs (EventItemList xs) stateRef
+    _ -> do
+      setTimer (Once 500) $ eventPoint' world imgs
+                                        (EventItemList (nextEvent:xs))
+                                        stateRef
+      return ()
 
 eventPoint' _ _ (Text "") stateRef = do
   (_, (m, p, picture)) <- readIORef stateRef
@@ -89,9 +100,11 @@ eventPoint' _ _ (Text "") stateRef = do
   renderState picture p
 eventPoint' _ _ (Text s) stateRef = do
   (_, m) <- readIORef stateRef
-  renderStateOnTop $ drawText s
-  writeIORef stateRef (TextEvent s', m)
-    where s' = restText $ restText s
+  renderStateOnTop $ drawText (s1, s2)
+  writeIORef stateRef (TextEvent rest2, m)
+    where
+      (s1, rest1) = parseDrawText s
+      (s2, rest2) = parseDrawText rest1
 
 eventPoint' _ _ (HTMLText s) _ = changeOutputHTML s
 
@@ -133,6 +146,7 @@ animateMovePlayer world imgs stateRef renderState' (nextState:xs)  = do
 
 movePlayer :: World -> Imgs -> MapState -> IORef State -> (Int, Int) -> IO ()
 movePlayer world imgs (m, p, mPicture) stateRef mousePos = do
+  changeOutputHTML ""
   case validPoint m (updatePoint mousePos p) of
     Just p' -> do 
       writeIORef stateRef (Locked, (m, p', mPicture))
@@ -144,7 +158,6 @@ movePlayer world imgs (m, p, mPicture) stateRef mousePos = do
 onClick :: World -> Imgs -> IORef State -> MouseData -> IO ()
 onClick world imgs stateRef (MouseData mousePos _ _) = do
   (mode, mapState) <- readIORef stateRef 
-  changeOutputHTML ""
   case mode of
     Normal -> movePlayer world imgs mapState stateRef mousePos
     TextEvent s -> eventPoint' world imgs (Text s) stateRef
