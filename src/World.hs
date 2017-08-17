@@ -1,6 +1,6 @@
 module World (World,
-            Tile (Free, Start, Wall, Event, Map),
-            TileItem (MapContent, TileItem),
+            Tile (Free, Start, Wall, Event, Map, Player),
+            TileItem (MapContent, TileItem, PlayerItem),
             MapContent',
             EventItem (NoEvent, Locked, Text, HTMLText,
                        Teleport, EventItemList),
@@ -12,9 +12,10 @@ import Parser
 type World = [(Tile, TileItem)]
 data Tile = Start | Free Integer |
             Wall Integer | Event Integer |
-            Map Integer deriving (Eq, Show)
+            Map Integer | Player Integer deriving (Eq, Show)
 data TileItem = MapContent (Double, [Tile]) |
-                TileItem String EventItem deriving (Eq, Show)
+                TileItem String EventItem |
+                PlayerItem String deriving (Eq, Show)
 type MapContent' = (Double, [Tile])
 data EventItem = NoEvent |
                  Locked |
@@ -34,6 +35,7 @@ eqTile (Free _) (Free _) = True
 eqTile (Wall _) (Wall _) = True
 eqTile (Event _) (Event _) = True
 eqTile (Map _) (Map _) = True
+eqTile (Player _) (Player _) = True
 eqTile _ _ = False
 
 tile :: Integer -> Tile
@@ -113,7 +115,10 @@ parseWorldItem = accept "Map" -# number # parseMap >->
                  number #- accept img # var # parseEvents >->
                  (\((n, image), e) -> (Event n, TileItem image e)) !
                  accept "Event" -# number # parseEvents >->
-                 (\(n, e) -> (Event n, TileItem "" e))
+                 (\(n, e) -> (Event n, TileItem "" e)) !
+
+                 accept "Player" -# number #- accept img # var >->
+                 (\(n, image) -> (Player n, PlayerItem image))
 
 parseWorldItems :: Parser World
 parseWorldItems = parseWorldItem # parseWorldItems >->
@@ -129,6 +134,7 @@ oneStart world = count == 1
         starts = lengthFilter Start
         lengthFilter = length . flip filter tiles . (==)
     foldCount _ (TileItem _ _) = error "Should never happen"
+    foldCount _ (PlayerItem _) = error "Should never happen"
 
 formatWorld :: Maybe (World, String) -> Maybe World
 formatWorld Nothing = Nothing

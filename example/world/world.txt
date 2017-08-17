@@ -22,6 +22,8 @@ Map 2
 10 10 30 
 END
 
+Player 1 IMG world/Player.png
+
 Start IMG world/Start.png
 	Text
 		This is the Start. Click in the direction you want to move! :)

@@ -121,7 +121,7 @@ drawTile' Start = drawShape yellow . shapeCircle
 drawTile' (Free _) = drawShape black . shapeCircle
 drawTile' (Wall _) = drawShape white . shapeRect
 drawTile' (Event _) = drawShape red . shapeCircle
-drawTile' (Map _) = error "Cannot be drawn from tile info"
+drawTile' _ = error "Cannot be drawn from tile info"
 
 drawTile :: Imgs -> Tile -> Rect -> Picture ()
 drawTile imgs tile 
@@ -171,16 +171,19 @@ loadImages ((_, TileItem "" _):xti) = loadImages xti
 loadImages ((t, TileItem s _):xti) = (:) <$> fmap (\img -> (t, img))
                                              (loadBitmap s) <*>
                                              loadImages xti
-loadImages ((_, MapContent _):xti) = loadImages xti
+loadImages ((t, PlayerItem s):xti) = (:) <$> fmap (\img -> (t, img))
+                                             (loadBitmap s) <*>
+                                             loadImages xti
+loadImages ((_, _):xti) = loadImages xti
 
 renderStateOnTop :: Picture () -> IO ()
 renderStateOnTop picture = do 
   Just c <- getCanvasById "canvas"
   renderOnTop c picture
 
-renderState :: Picture () -> Point -> IO ()
-renderState mapPicture (x, y) = do 
+renderState :: Maybe Bitmap -> Picture () -> Point -> IO ()
+renderState pImg mapPicture (x, y) = do 
   Just c <- getCanvasById "canvas"
   render c $ do
     translateMap x y mapPicture
-    drawPlayer Nothing
+    drawPlayer pImg

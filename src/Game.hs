@@ -10,7 +10,7 @@ import Haste.Events
 import Data.IORef
 import Data.List
 
-type MapState = (MapContent', Point, Picture ())
+type MapState = (MapContent', Point, Picture (), Maybe Bitmap)
 type State = (EventItem, MapState, World, Imgs)
 
 validPoint :: MapContent' -> Point -> Maybe Point
@@ -65,8 +65,8 @@ animateFades :: (Double -> Picture ()) ->
                 [(IO (), [Double])] ->
                 IORef State -> IO ()
 animateFades _ [] stateRef = do
-  (_, (m, p, picture), world, imgs) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, (m, p, picture), world, imgs)
+  (_, (m, p, picture, pImgs), world, imgs) <- readIORef stateRef
+  writeIORef stateRef (NoEvent, (m, p, picture, pImgs), world, imgs)
   return ()
 animateFades fader ((_, []):xRS) stateRef =
                                         animateFades fader xRS stateRef
@@ -93,9 +93,9 @@ eventPoint' (EventItemList (nextEvent:xs)) stateRef = do
       return ()
 
 eventPoint' (Text "") stateRef = do
-  (_, (m, p, picture), world, imgs) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, (m, p, picture), world, imgs)
-  renderState picture p
+  (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
+  writeIORef stateRef (NoEvent, (m, p, picture, pImg), world, imgs)
+  renderState pImg picture p
 eventPoint' (Text s) stateRef = do
   (_, m, world, imgs) <- readIORef stateRef
   renderStateOnTop $ drawText (s1, s2)
@@ -107,42 +107,33 @@ eventPoint' (Text s) stateRef = do
 eventPoint' (HTMLText s) _ = changeOutputHTML s
 
 eventPoint' (Teleport m p') stateRef = do
-  (_, (_, p, picture), world, imgs) <- readIORef stateRef
+  (_, (_, p, picture, pImg), world, imgs) <- readIORef stateRef
   let Just (MapContent newMap) = lookup m world
   let newPicture = drawMap imgs newMap
   let fades = 10
   let fadeOut = map (/fades) [0..fades]
   let fadeIn = tail $ reverse fadeOut
-  writeIORef stateRef (Locked, (newMap, p', newPicture), world, imgs)
-  animateFades fullBlack [(renderState picture p, fadeOut),
-                          (renderState newPicture p', fadeIn)] stateRef
+  writeIORef stateRef (Locked, (newMap, p', newPicture, pImg), world, imgs)
+  animateFades fullBlack [(renderState pImg picture p, fadeOut),
+                     (renderState pImg newPicture p', fadeIn)] stateRef
   return ()
---    where
---      Just (MapContent newMap) = lookup m world
---      newPicture = drawMap imgs newMap
---      fades = 10
---      fadeOut = map (/fades) [0..fades]
---      fadeIn = tail $ reverse fadeOut
 
 eventPoint' _ _ = return ()
 
 
 eventPoint :: IORef State -> IO ()
 eventPoint stateRef = do
-  (_, ((c, tiles), (x, y), _), world, _) <- readIORef stateRef
+  (_, ((c, tiles), (x, y), _, _), world, _) <- readIORef stateRef
   let tile = tiles !! floor (x + c * y)
   let Just (TileItem _ e) = lookup tile world
   eventPoint' e stateRef
---    where
---      tile = tiles !! floor (x + c * y)
---      Just (TileItem _ e) = lookup tile world
 -----------------------------------------------------------------------
 
 animateMovePlayer :: IORef State -> (Point -> IO ()) ->
                      [Point] -> IO ()
 animateMovePlayer stateRef _ []  = do
-  (_, (m, p, picture), world, imgs) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, (m, p, picture), world, imgs)
+  (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
+  writeIORef stateRef (NoEvent, (m, p, picture, pImg), world, imgs)
   eventPoint stateRef
   return ()
 animateMovePlayer stateRef renderState' (nextState:xs)  = do
@@ -152,13 +143,13 @@ animateMovePlayer stateRef renderState' (nextState:xs)  = do
 
 movePlayer :: IORef State -> (Int, Int) -> IO ()
 movePlayer stateRef mousePos = do
-  (_, (m, p, picture), world, imgs) <- readIORef stateRef
+  (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
   changeOutputHTML ""
   case validPoint m (updatePoint mousePos p) of
     Just p' -> do 
-      writeIORef stateRef (Locked, (m, p', picture), world, imgs)
+      writeIORef stateRef (Locked, (m, p', picture, pImg), world, imgs)
       animateMovePlayer stateRef
-                        (renderState picture) (interPoints p p')
+                        (renderState pImg picture) (interPoints p p')
     Nothing -> return ()
   
 
@@ -178,10 +169,12 @@ play (Just worldStr) = do
       let sMap = startMap world
       let sPoint = startPoint sMap
       let sPicture = drawMap imgs sMap
+      let pImg = lookup (Player 1) imgs
 
-      stateRef <- newIORef (NoEvent, (sMap, sPoint, sPicture), world, imgs)
+      stateRef <- newIORef (NoEvent, (sMap, sPoint, sPicture, pImg),
+                            world, imgs)
       onEvent ce Click $ onClick stateRef
-      renderState sPicture sPoint
+      renderState pImg sPicture sPoint
       eventPoint stateRef
     Nothing -> alert "Map parsing error"
 play Nothing = alert "Map file not loaded"
