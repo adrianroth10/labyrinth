@@ -11,7 +11,7 @@ import Data.IORef
 import Data.List
 
 type MapState = (MapContent', Point, Picture ())
-type State = (EventItem, MapState)
+type State = (EventItem, MapState, World, Imgs)
 
 validPoint :: MapContent' -> Point -> Maybe Point
 validPoint (c, tiles) (x, y)
@@ -65,8 +65,8 @@ animateFades :: (Double -> Picture ()) ->
                 [(IO (), [Double])] ->
                 IORef State -> IO ()
 animateFades _ [] stateRef = do
-  (_, (m, p, mPicture)) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, (m, p, mPicture))
+  (_, (m, p, picture), world, imgs) <- readIORef stateRef
+  writeIORef stateRef (NoEvent, (m, p, picture), world, imgs)
   return ()
 animateFades fader ((_, []):xRS) stateRef =
                                         animateFades fader xRS stateRef
@@ -79,88 +79,95 @@ animateFades fader ((renderState', (fadeLevel:xFL)):xRS) stateRef = do
     return ()
 
 -------------------------------Events----------------------------------
-eventPoint' :: World -> Imgs -> EventItem -> IORef State -> IO ()
-eventPoint' _ _ (EventItemList []) _ = return ()
-eventPoint' world imgs (EventItemList (nextEvent:xs)) stateRef = do
-  (event, _) <- readIORef stateRef
+eventPoint' :: EventItem -> IORef State -> IO ()
+eventPoint' (EventItemList []) _ = return ()
+eventPoint' (EventItemList (nextEvent:xs)) stateRef = do
+  (event, _, _, _) <- readIORef stateRef
   case event of
     NoEvent -> do 
-      eventPoint' world imgs nextEvent stateRef
-      eventPoint' world imgs (EventItemList xs) stateRef
+      eventPoint' nextEvent stateRef
+      eventPoint' (EventItemList xs) stateRef
     _ -> do
-      setTimer (Once 100) $ eventPoint' world imgs
-                                        (EventItemList (nextEvent:xs))
+      setTimer (Once 100) $ eventPoint' (EventItemList (nextEvent:xs))
                                         stateRef
       return ()
 
-eventPoint' _ _ (Text "") stateRef = do
-  (_, (m, p, picture)) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, (m, p, picture))
+eventPoint' (Text "") stateRef = do
+  (_, (m, p, picture), world, imgs) <- readIORef stateRef
+  writeIORef stateRef (NoEvent, (m, p, picture), world, imgs)
   renderState picture p
-eventPoint' _ _ (Text s) stateRef = do
-  (_, m) <- readIORef stateRef
+eventPoint' (Text s) stateRef = do
+  (_, m, world, imgs) <- readIORef stateRef
   renderStateOnTop $ drawText (s1, s2)
-  writeIORef stateRef (Text rest2, m)
+  writeIORef stateRef (Text rest2, m, world, imgs)
     where
       (s1, rest1) = parseDrawText s
       (s2, rest2) = parseDrawText rest1
 
-eventPoint' _ _ (HTMLText s) _ = changeOutputHTML s
+eventPoint' (HTMLText s) _ = changeOutputHTML s
 
-eventPoint' world imgs (Teleport m p') stateRef = do
-  (_, (_, p, picture)) <- readIORef stateRef
-  writeIORef stateRef (Locked, (newMap, p', newPicture))
+eventPoint' (Teleport m p') stateRef = do
+  (_, (_, p, picture), world, imgs) <- readIORef stateRef
+  let Just (MapContent newMap) = lookup m world
+  let newPicture = drawMap imgs newMap
+  let fades = 10
+  let fadeOut = map (/fades) [0..fades]
+  let fadeIn = tail $ reverse fadeOut
+  writeIORef stateRef (Locked, (newMap, p', newPicture), world, imgs)
   animateFades fullBlack [(renderState picture p, fadeOut),
                           (renderState newPicture p', fadeIn)] stateRef
   return ()
-    where
-      Just (MapContent newMap) = lookup m world
-      newPicture = drawMap imgs newMap
-      fades = 10
-      fadeOut = map (/fades) [0..fades]
-      fadeIn = tail $ reverse fadeOut
+--    where
+--      Just (MapContent newMap) = lookup m world
+--      newPicture = drawMap imgs newMap
+--      fades = 10
+--      fadeOut = map (/fades) [0..fades]
+--      fadeIn = tail $ reverse fadeOut
 
-eventPoint' _ _ _ _ = return ()
+eventPoint' _ _ = return ()
 
 
-eventPoint :: World -> Imgs -> MapContent' ->
-              Point -> IORef State -> IO ()
-eventPoint world imgs (c, tiles) (x, y) stateRef =
-                                      eventPoint' world imgs e stateRef
-  where
-    tile = tiles !! floor (x + c * y)
-    Just (TileItem _ e) = lookup tile world
+eventPoint :: IORef State -> IO ()
+eventPoint stateRef = do
+  (_, ((c, tiles), (x, y), _), world, _) <- readIORef stateRef
+  let tile = tiles !! floor (x + c * y)
+  let Just (TileItem _ e) = lookup tile world
+  eventPoint' e stateRef
+--    where
+--      tile = tiles !! floor (x + c * y)
+--      Just (TileItem _ e) = lookup tile world
 -----------------------------------------------------------------------
 
-animateMovePlayer :: World -> Imgs -> IORef State ->
-                     (Point -> IO ()) -> [Point] -> IO ()
-animateMovePlayer world imgs stateRef _ []  = do
-  (_, (m, p, mPicture)) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, (m, p, mPicture))
-  eventPoint world imgs m p stateRef
+animateMovePlayer :: IORef State -> (Point -> IO ()) ->
+                     [Point] -> IO ()
+animateMovePlayer stateRef _ []  = do
+  (_, (m, p, picture), world, imgs) <- readIORef stateRef
+  writeIORef stateRef (NoEvent, (m, p, picture), world, imgs)
+  eventPoint stateRef
   return ()
-animateMovePlayer world imgs stateRef renderState' (nextState:xs)  = do
+animateMovePlayer stateRef renderState' (nextState:xs)  = do
   renderState' nextState
-  setTimer (Once 10) (animateMovePlayer world imgs stateRef renderState' xs)
+  setTimer (Once 10) (animateMovePlayer stateRef renderState' xs)
   return ()
 
-movePlayer :: World -> Imgs -> MapState -> IORef State -> (Int, Int) -> IO ()
-movePlayer world imgs (m, p, mPicture) stateRef mousePos = do
+movePlayer :: IORef State -> (Int, Int) -> IO ()
+movePlayer stateRef mousePos = do
+  (_, (m, p, picture), world, imgs) <- readIORef stateRef
   changeOutputHTML ""
   case validPoint m (updatePoint mousePos p) of
     Just p' -> do 
-      writeIORef stateRef (Locked, (m, p', mPicture))
-      animateMovePlayer world imgs stateRef
-                        (renderState mPicture) (interPoints p p')
+      writeIORef stateRef (Locked, (m, p', picture), world, imgs)
+      animateMovePlayer stateRef
+                        (renderState picture) (interPoints p p')
     Nothing -> return ()
   
 
-onClick :: World -> Imgs -> IORef State -> MouseData -> IO ()
-onClick world imgs stateRef (MouseData mousePos _ _) = do
-  (event, mapState) <- readIORef stateRef 
+onClick :: IORef State -> MouseData -> IO ()
+onClick stateRef (MouseData mousePos _ _) = do
+  (event, _, _, _) <- readIORef stateRef 
   case event of
-    NoEvent -> movePlayer world imgs mapState stateRef mousePos
-    _ -> eventPoint' world imgs event stateRef
+    NoEvent -> movePlayer stateRef mousePos
+    _ -> eventPoint' event stateRef
 
 play :: Maybe String -> IO ()
 play (Just worldStr) = do 
@@ -172,10 +179,10 @@ play (Just worldStr) = do
       let sPoint = startPoint sMap
       let sPicture = drawMap imgs sMap
 
-      stateRef <- newIORef (NoEvent, (sMap, sPoint, sPicture))
-      onEvent ce Click $ onClick world imgs stateRef
+      stateRef <- newIORef (NoEvent, (sMap, sPoint, sPicture), world, imgs)
+      onEvent ce Click $ onClick stateRef
       renderState sPicture sPoint
-      eventPoint world imgs sMap sPoint stateRef
+      eventPoint stateRef
     Nothing -> alert "Map parsing error"
 play Nothing = alert "Map file not loaded"
 
