@@ -49,7 +49,7 @@ Event 2 IMG world/Event.png
 END
 
 Event 3 IMG world/Event.png
-	Teleport Map 1 Point 3 2
+	Teleport Map 1 Point 7 0
 END
 
 Event 4 IMG world/Event.png

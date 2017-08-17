@@ -2,7 +2,8 @@ module World (World,
             Tile (Free, Start, End, Wall, Event, Map),
             TileItem (MapContent, TileItem),
             MapContent',
-            EventItem (NoEvent, Text, HTMLText, Teleport, EventItemList),
+            EventItem (NoEvent, Locked, Text, HTMLText,
+                       Teleport, EventItemList),
             eqTile,
             parseWorld) where
 
@@ -16,6 +17,7 @@ data TileItem = MapContent (Double, [Tile]) |
                 TileItem String EventItem deriving (Eq, Show)
 type MapContent' = (Double, [Tile])
 data EventItem = NoEvent |
+                 Locked |
                  Text String |
                  HTMLText String |
                  Teleport Tile (Double, Double) |
