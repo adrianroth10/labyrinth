@@ -2,8 +2,8 @@ module World (World,
             Tile (Free, Start, Wall, Event, Map, Player),
             TileItem (MapContent, TileItem, PlayerItem),
             MapContent',
-            EventItem (NoEvent, Locked, Text, HTMLText,
-                       Teleport, EventItemList),
+            EventItem (NoEvent, Locked, Text, FullText,
+                       HTMLText, Teleport, EventItemList),
             eqTile,
             parseWorld) where
 
@@ -20,6 +20,7 @@ type MapContent' = (Double, [Tile])
 data EventItem = NoEvent |
                  Locked |
                  Text String |
+                 FullText String String |
                  HTMLText String |
                  Teleport Tile (Double, Double) |
                  EventItemList [EventItem] deriving (Eq, Show)
@@ -57,7 +58,12 @@ inputContent = accept "END" -# Parser.return [] !
 parseEvent :: Parser EventItem
 parseEvent = accept "Text" -# inputContent >-> (Text . unlines) !
 
-           accept "HTMLText" -# inputContent >-> (HTMLText . unlines) !
+             accept "FullText" -# inputContent >->
+             (\content -> FullText (head content)
+                                   (unlines (tail content))) !
+
+             accept "HTMLText" -# inputContent >->
+             (HTMLText . unlines) !
 
              accept "Teleport" -# accept "Map" -# number #-
              accept "Point" # (number >-> fromInteger) # 

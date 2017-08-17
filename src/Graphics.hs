@@ -10,6 +10,7 @@ module Graphics (Haste.Graphics.Canvas.Point,
                  drawMap,
                  parseDrawText,
                  drawText,
+                 drawFullText,
                  renderState,
                  renderStateOnTop,
                  loadImages) where
@@ -76,10 +77,13 @@ drawTextBox = do
                 (rect_x textRect + rect_w textRect - padding,
                  rect_y textRect + rect_h textRect - padding)
 
-textPoint1, textPoint2 :: Point
+textPoint1, textPoint2, headingPoint :: Point
 textPoint1 = (3 * padding, rect_y textRect + 3.5 * padding)
 textPoint2 = (3 * padding,
               rect_y textRect + rect_h textRect / 2 + 2.5 * padding)
+headingPoint = (50, 50)
+fullTextPoint :: Double -> Point
+fullTextPoint i = (20, 50 + 40 * i)
 
 parseDrawText' :: String -> [[String]] -> (String, String)
 parseDrawText' "" [] = ("", "")
@@ -100,6 +104,17 @@ drawText (s1, s2) = do
   drawTextBox
   font "20px italic Monospace" $ text textPoint1 s1
   font "20px italic Monospace" $ text textPoint2 s2
+
+
+drawFullText :: String -> [String] -> Picture ()
+drawFullText h s = do
+  fullBlack 0.75
+  white $ font "30px italic Monospace" $ text headingPoint h
+  white $ font "20px italic Monospace" $ text (fullTextPoint 1) $ s !! 0
+  white $ font "20px italic Monospace" $ text (fullTextPoint 2) $ s !! 1
+  white $ font "20px italic Monospace" $ text (fullTextPoint 3) $ s !! 2
+  white $ font "20px italic Monospace" $ text (fullTextPoint 4) $ s !! 3
+  white $ font "20px italic Monospace" $ text (fullTextPoint 5) $ s !! 4
 -----------------------------------------------------------------------
 
 ---------------------------Fading--------------------------------------

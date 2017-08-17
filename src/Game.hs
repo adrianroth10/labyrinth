@@ -104,6 +104,22 @@ eventPoint' (Text s) stateRef = do
       (s1, rest1) = parseDrawText s
       (s2, rest2) = parseDrawText rest1
 
+eventPoint' (FullText "" "") stateRef = do
+  (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
+  writeIORef stateRef (NoEvent, (m, p, picture, pImg), world, imgs)
+  renderState pImg picture p
+eventPoint' (FullText h s) stateRef = do
+  (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
+  renderState pImg picture p
+  renderStateOnTop $ drawFullText h [s1, s2, s3, s4, s5]
+  writeIORef stateRef (FullText "" rest5, (m, p, picture, pImg), world, imgs)
+    where
+      (s1, rest1) = parseDrawText s
+      (s2, rest2) = parseDrawText rest1
+      (s3, rest3) = parseDrawText rest2
+      (s4, rest4) = parseDrawText rest3
+      (s5, rest5) = parseDrawText rest4
+
 eventPoint' (HTMLText s) _ = changeOutputHTML s
 
 eventPoint' (Teleport m p') stateRef = do
