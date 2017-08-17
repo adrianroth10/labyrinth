@@ -28,12 +28,11 @@ height = 512
 blocks = 6
 
 --colors
-black, white, red, yellow, green, blue :: Picture () -> Picture ()
+black, white, red, yellow, blue :: Picture () -> Picture ()
 black = color $ RGB 0 0 0
 white = color $ RGB 255 255 255
 red = color $ RGB 255 0 0
 yellow = color $ RGB 255 255 0
-green = color $ RGB 0 255 0
 blue = color $ RGBA 0 0 255 0.5
 
 drawShape :: (Picture () -> Picture ()) -> Shape () -> Picture ()
@@ -119,7 +118,6 @@ fullWhite a = drawShape (color (RGBA 255 255 255 a))
 -- If no image has been specified
 drawTile' :: Tile -> Rect -> Picture ()
 drawTile' Start = drawShape yellow . shapeCircle
-drawTile' End = drawShape green . shapeCircle
 drawTile' (Free _) = drawShape black . shapeCircle
 drawTile' (Wall _) = drawShape white . shapeRect
 drawTile' (Event _) = drawShape red . shapeCircle

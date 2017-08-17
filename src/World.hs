@@ -1,5 +1,5 @@
 module World (World,
-            Tile (Free, Start, End, Wall, Event, Map),
+            Tile (Free, Start, Wall, Event, Map),
             TileItem (MapContent, TileItem),
             MapContent',
             EventItem (NoEvent, Locked, Text, HTMLText,
@@ -10,7 +10,7 @@ module World (World,
 import Parser
 
 type World = [(Tile, TileItem)]
-data Tile = Start | End | Free Integer |
+data Tile = Start | Free Integer |
             Wall Integer | Event Integer |
             Map Integer deriving (Eq, Show)
 data TileItem = MapContent (Double, [Tile]) |
@@ -30,7 +30,6 @@ img = "IMG"
 
 eqTile :: Tile -> Tile -> Bool
 eqTile Start Start = True
-eqTile End End = True
 eqTile (Free _) (Free _) = True
 eqTile (Wall _) (Wall _) = True
 eqTile (Event _) (Event _) = True
@@ -40,7 +39,6 @@ eqTile _ _ = False
 tile :: Integer -> Tile
 tile n
   | n == 0 = Start
-  | n == 1 = End
   | n >= 10 && n < 20 = Free (n - 9)
   | n >= 20 && n < 30 = Wall (n - 19)
   | n >= 30 = Event (n - 29)
@@ -101,11 +99,6 @@ parseWorldItem = accept "Map" -# number # parseMap >->
                  accept "Start" -# parseEvents >->
                  (\e -> (Start, TileItem "" e)) !
 
-                 accept "End" -# accept img -# var # parseEvents >->
-                 (\(image, e) -> (End, TileItem image e)) !
-                 accept "End" -# parseEvents >->
-                 (\e -> (End, TileItem "" e)) !
-
                  accept "Free" -# number #- accept img # var >->
                  (\(n, image) -> (Free n, TileItem image NoEvent)) !
                  accept "Free" -# number >->
@@ -126,22 +119,21 @@ parseWorldItems :: Parser World
 parseWorldItems = parseWorldItem # parseWorldItems >->
                   prepend ! Parser.return []
 
-oneStartEnd :: World -> Bool
-oneStartEnd world = count == (1, 1)
+oneStart :: World -> Bool
+oneStart world = count == 1
   where
     world' = map snd $ filter ((eqTile (Map 1)) . fst) world
-    count = foldl foldCount (0, 0) world'
-    foldCount (s, e) (MapContent (_, tiles)) = (s + starts, e + ends)
+    count = foldl foldCount 0 world'
+    foldCount s (MapContent (_, tiles)) = s + starts
       where
         starts = lengthFilter Start
-        ends = lengthFilter End
         lengthFilter = length . flip filter tiles . (==)
-    foldCount (_, _) (TileItem _ _) = error "Should never happen"
+    foldCount _ (TileItem _ _) = error "Should never happen"
 
 formatWorld :: Maybe (World, String) -> Maybe World
 formatWorld Nothing = Nothing
 formatWorld (Just (worldItems, ""))
-  | oneStartEnd worldItems = Just worldItems
+  | oneStart worldItems = Just worldItems
   | otherwise = Nothing
 formatWorld (Just (_, _)) = Nothing -- Garbage parsing error
 
