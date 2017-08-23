@@ -4,12 +4,13 @@ module Graphics (Haste.Graphics.Canvas.Point,
                  Imgs,
                  width,
                  height,
-                 blocks,
+                 block,
                  fullBlack,
                  fullWhite,
                  drawMap,
                  parseDrawText,
                  drawText,
+                 nFullTextPoints,
                  drawFullText,
                  renderState,
                  renderStateOnTop,
@@ -23,10 +24,10 @@ import Data.Maybe
 type Imgs = [(Tile, Bitmap)]
 
 --constants
-width, height, blocks :: Double
-width = 512
+width, height, block :: Double
+width = 712
 height = 512
-blocks = 6
+block = 50
 
 --colors
 black, white, red, yellow, blue :: Picture () -> Picture ()
@@ -49,8 +50,8 @@ shapeRect (Rect x y w h) = rect (x, y) (x + w, y + h)
 padding :: Double
 padding = 10
 textRect :: Rect
-textRect = Rect padding (height - height / 5)
-                (width - 2 * padding) (height / 5 - padding)
+textRect = Rect (width / 2 - 250) (height - 100 - padding)
+                500 100
 drawTextBox :: Picture ()
 drawTextBox = do
   drawShape white $ rect (rect_x textRect + padding, rect_y textRect)
@@ -77,13 +78,11 @@ drawTextBox = do
                 (rect_x textRect + rect_w textRect - padding,
                  rect_y textRect + rect_h textRect - padding)
 
-textPoint1, textPoint2, headingPoint :: Point
-textPoint1 = (3 * padding, rect_y textRect + 3.5 * padding)
-textPoint2 = (3 * padding,
+textPoint1, textPoint2 :: Point
+textPoint1 = (rect_x textRect + 2 * padding,
+              rect_y textRect + 3.5 * padding)
+textPoint2 = (rect_x textRect + 2 * padding,
               rect_y textRect + rect_h textRect / 2 + 2.5 * padding)
-headingPoint = (50, 50)
-fullTextPoint :: Double -> Point
-fullTextPoint i = (20, 50 + 40 * i)
 
 parseDrawText' :: String -> [[String]] -> (String, String)
 parseDrawText' "" [] = ("", "")
@@ -105,16 +104,21 @@ drawText (s1, s2) = do
   font "20px italic Monospace" $ text textPoint1 s1
   font "20px italic Monospace" $ text textPoint2 s2
 
+headingPoint :: Point
+headingPoint = (50, 50)
+fullTextPoint :: Double -> Point
+fullTextPoint i = (20, 50 + 40 * i)
+nFullTextPoints :: Int
+nFullTextPoints = floor $ (height - 50) / 40
 
 drawFullText :: String -> [String] -> Picture ()
 drawFullText h s = do
   fullBlack 0.75
   white $ font "30px italic Monospace" $ text headingPoint h
-  white $ font "20px italic Monospace" $ text (fullTextPoint 1) $ s !! 0
-  white $ font "20px italic Monospace" $ text (fullTextPoint 2) $ s !! 1
-  white $ font "20px italic Monospace" $ text (fullTextPoint 3) $ s !! 2
-  white $ font "20px italic Monospace" $ text (fullTextPoint 4) $ s !! 3
-  white $ font "20px italic Monospace" $ text (fullTextPoint 5) $ s !! 4
+  mapM_ (\(point, s') -> white (font "20px italic Monospace"
+        (text point s')))
+        (zip [fullTextPoint i | i <- [1..lS]] s)
+    where lS = fromIntegral $ length s
 -----------------------------------------------------------------------
 
 ---------------------------Fading--------------------------------------
@@ -144,40 +148,33 @@ drawTile imgs tile
   | otherwise  = drawTile' tile
   where img = lookup tile imgs
 
-drawTiles :: Imgs -> [Tile] -> [Rect] -> Picture ()
-drawTiles _ [] _ = return ()
-drawTiles _ _ [] = return ()
-drawTiles imgs (t:ts) (r:rs) = do
-  drawTile imgs t r
-  drawTiles imgs ts rs
+drawTiles :: Imgs -> [(Tile, Rect)] -> Picture ()
+drawTiles imgs tileAndPoints = mapM_ (uncurry (drawTile imgs))
+                                     tileAndPoints
 
 mesh :: Double -> [Rect]
-mesh c = map (\(x, y) -> Rect x y w h) points
+mesh c = map (\(x, y) -> Rect x y block block) points
   where
-    w = width / blocks
-    h = height / blocks
     pointMul (x1, y1) (x2, y2) = (x1 * x2, y1 * y2)
     coordinates = [(x, y) | y <- [0..], x <- [0..c - 1]]
-    points = map (pointMul (w, h)) coordinates
+    points = map (pointMul (block, block)) coordinates
 
 drawMap :: Imgs -> MapContent' -> Picture ()
-drawMap imgs (c, tiles) = drawTiles imgs tiles (mesh c)
+drawMap imgs (c, tiles) = drawTiles imgs $ zip tiles (mesh c)
 -----------------------------------------------------------------------
 
 drawPlayer :: Maybe Bitmap -> Picture ()
 drawPlayer Nothing = drawShape blue $ circle (width / 2, height / 2)
-                                             (width / blocks / 2 - 10)
+                                   (block / 2 - 10)
 drawPlayer (Just img) = drawScaled img playerRect
   where
-    w = width / blocks
-    h = height / blocks
-    playerRect = Rect (width / 2 - w / 2) (height / 2 - h / 2) w h
+    playerRect = Rect (width / 2 - block / 2) (height / 2 - block / 2) block block
 
 translateMap :: Double -> Double -> Picture () -> Picture ()
 translateMap x y picture = translate (x_i, y_i) picture
   where
-    x_i = -(x - (blocks - 1) / 2) * width / blocks
-    y_i = -(y - (blocks - 1) / 2) * height / blocks
+    x_i = -(x - (width / block - 1) / 2) * block
+    y_i = -(y - (height / block - 1) / 2) * block
 
 ---------------------------------Impure--------------------------------
 loadImages :: World -> IO Imgs

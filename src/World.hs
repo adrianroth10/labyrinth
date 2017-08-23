@@ -1,11 +1,11 @@
 module World (World,
-            Tile (Free, Start, Wall, Event, Map, Player),
-            TileItem (MapContent, TileItem, PlayerItem),
-            MapContent',
-            EventItem (NoEvent, Locked, Text, FullText,
-                       HTMLText, Teleport, EventItemList),
-            eqTile,
-            parseWorld) where
+              Tile (Free, Start, Wall, Event, Map, Player),
+              TileItem (MapContent, TileItem, PlayerItem),
+              MapContent',
+              EventItem (NoEvent, Locked, Text, FullText,
+                         HTMLText, Teleport, EventItemList),
+              eqTile,
+              parseWorld) where
 
 import Parser
 
@@ -25,10 +25,10 @@ data EventItem = NoEvent |
                  Teleport Tile (Double, Double) |
                  EventItemList [EventItem] deriving (Eq, Show)
 
-end :: String
+end, img, emptyLine :: String
 end = "END"
-img :: String
 img = "IMG"
+emptyLine = "EMPTYLINE"
 
 eqTile :: Tile -> Tile -> Bool
 eqTile Start Start = True
@@ -50,17 +50,26 @@ tile n
 prepend :: (a, [a]) -> [a]
 prepend (x, xs) = x:xs
 
+replace :: Eq a => a -> a -> [a] -> [a]
+replace _ _ [] = []
+replace pat rep (x:xs)
+  | x == pat = rep : replace pat rep xs
+  | otherwise = x : replace pat rep xs
+
+
 ---------------------------------Event---------------------------------
 inputContent :: Parser [String]
 inputContent = accept "END" -# Parser.return [] !
                line # inputContent >-> prepend
 
 parseEvent :: Parser EventItem
-parseEvent = accept "Text" -# inputContent >-> (Text . unlines) !
+parseEvent = accept "Text" -# inputContent >->
+             (Text . unlines . (replace emptyLine "")) !
 
              accept "FullText" -# inputContent >->
              (\content -> FullText (head content)
-                                   (unlines (tail content))) !
+                                   (unlines (replace emptyLine ""
+                                                    (tail content)))) !
 
              accept "HTMLText" -# inputContent >->
              (HTMLText . unlines) !

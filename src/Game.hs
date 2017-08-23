@@ -28,8 +28,8 @@ updateCoord threshhold dir old
 
 updatePoint :: (Int, Int) -> Point -> Point
 updatePoint (x, y) (xS, yS)
-  | abs xT > abs yT = (updateCoord (width / blocks / 2) xT xS, yS)
-  | otherwise = (xS, updateCoord (height / blocks / 2) yT yS)
+  | abs xT > abs yT = (updateCoord (block / 2) xT xS, yS)
+  | otherwise = (xS, updateCoord (block / 2) yT yS)
   where
     xT = fromIntegral x - width / 2
     yT = fromIntegral y - height / 2
@@ -111,14 +111,15 @@ eventPoint' (FullText "" "") stateRef = do
 eventPoint' (FullText h s) stateRef = do
   (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
   renderState pImg picture p
-  renderStateOnTop $ drawFullText h [s1, s2, s3, s4, s5]
-  writeIORef stateRef (FullText "" rest5, (m, p, picture, pImg), world, imgs)
+  renderStateOnTop $ drawFullText h sDraw
+  writeIORef stateRef (FullText "" sRest,
+                       (m, p, picture, pImg),
+                       world, imgs)
     where
-      (s1, rest1) = parseDrawText s
-      (s2, rest2) = parseDrawText rest1
-      (s3, rest3) = parseDrawText rest2
-      (s4, rest4) = parseDrawText rest3
-      (s5, rest5) = parseDrawText rest4
+      sDraw = map fst sParsed
+      sRest = snd $ last sParsed
+      sParsed = take nFullTextPoints $ iterate (parseDrawText . snd)
+                                               $ parseDrawText s
 
 eventPoint' (HTMLText s) _ = changeOutputHTML s
 
@@ -129,7 +130,9 @@ eventPoint' (Teleport m p') stateRef = do
   let fades = 10
   let fadeOut = map (/fades) [0..fades]
   let fadeIn = tail $ reverse fadeOut
-  writeIORef stateRef (Locked, (newMap, p', newPicture, pImg), world, imgs)
+  writeIORef stateRef (Locked,
+                       (newMap, p', newPicture, pImg),
+                       world, imgs)
   animateFades fullBlack [(renderState pImg picture p, fadeOut),
                      (renderState pImg newPicture p', fadeIn)] stateRef
   return ()
