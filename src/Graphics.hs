@@ -185,7 +185,7 @@ loadImages ((_, TileItem "" _):xti) = loadImages xti
 loadImages ((t, TileItem s _):xti) = (:) <$> fmap (\img -> (t, img))
                                              (loadBitmap s) <*>
                                              loadImages xti
-loadImages ((t, PlayerItem s):xti) = (:) <$> fmap (\img -> (t, img))
+loadImages ((t, PlayerItem s _ _):xti) = (:) <$> fmap (\img -> (t, img))
                                              (loadBitmap s) <*>
                                              loadImages xti
 loadImages ((_, _):xti) = loadImages xti

@@ -23,6 +23,28 @@ Map 2
 END
 
 Player 1 IMG world/Player.png
+	Name This
+	Moves
+		Move
+			Name First
+			Damage 10
+			Events
+			Text
+				Atttack!!!
+			END
+		END
+		Move
+			Name Second
+			Damage 10
+			Events
+			Text
+				Atttack!!!
+			END
+		END
+	END
+END
+
+Player 2 IMG world/Player2.png
 
 Start IMG world/Start.png
 	FullText

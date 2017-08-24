@@ -3,7 +3,7 @@ module World (World,
               TileItem (MapContent, TileItem, PlayerItem),
               MapContent',
               EventItem (NoEvent, Locked, Text, FullText,
-                         HTMLText, Teleport, EventItemList),
+                         HTMLText, Teleport, Fight, EventItemList),
               eqTile,
               parseWorld) where
 
@@ -15,14 +15,16 @@ data Tile = Start | Free Integer |
             Map Integer | Player Integer deriving (Eq, Show)
 data TileItem = MapContent (Double, [Tile]) |
                 TileItem String EventItem |
-                PlayerItem String deriving (Eq, Show)
+                PlayerItem String String Moves deriving (Eq, Show)
 type MapContent' = (Double, [Tile])
+type Moves = [(String, Integer, EventItem)]
 data EventItem = NoEvent |
                  Locked |
                  Text String |
                  FullText String String |
                  HTMLText String |
                  Teleport Tile (Double, Double) |
+                 Fight EventItem (Tile, Tile) (EventItem, EventItem) |
                  EventItemList [EventItem] deriving (Eq, Show)
 
 end, img, emptyLine :: String
@@ -58,26 +60,32 @@ replace pat rep (x:xs)
 
 
 ---------------------------------Event---------------------------------
-inputContent :: Parser [String]
-inputContent = accept "END" -# Parser.return [] !
-               line # inputContent >-> prepend
+parseLines :: Parser [String]
+parseLines = accept end -# Parser.return [] !
+               line # parseLines >-> prepend
 
 parseEvent :: Parser EventItem
-parseEvent = accept "Text" -# inputContent >->
-             (Text . unlines . (replace emptyLine "")) !
-
-             accept "FullText" -# inputContent >->
-             (\content -> FullText (head content)
-                                   (unlines (replace emptyLine ""
-                                                    (tail content)))) !
-
-             accept "HTMLText" -# inputContent >->
-             (HTMLText . unlines) !
-
+parseEvent = accept "Text" -# parseLines >->
+             (Text . unlines . (replace emptyLine ""))
+             !
+             accept "FullText" -# parseLines >-> replace emptyLine ""
+             >-> (\content -> FullText (head content)
+                                       (unlines (tail content)))
+             !
+             accept "HTMLText" -# parseLines >->
+             (HTMLText . unlines)
+             !
              accept "Teleport" -# accept "Map" -# number #-
              accept "Point" # (number >-> fromInteger) # 
              (number >-> fromInteger) >->
              (\((n, x), y) -> Teleport (Map n) (x, y))
+             !
+             accept "Fight" -# accept "Start" -# parseEvents #-
+             accept "Player" # number #- accept "Player" # number #-
+             accept "Win" # parseEvents #-
+             accept "Lose" # parseEvents #- accept end >->
+             (\((((start, p1), p2), win), lose) ->
+                        Fight start (Player p1, Player p2) (win, lose))
 
 formatEvents :: [EventItem] -> EventItem
 formatEvents [] = NoEvent
@@ -89,6 +97,20 @@ parseEvents' = accept end -# Parser.return [] !
                parseEvent # parseEvents' >-> prepend
 parseEvents :: Parser EventItem
 parseEvents = parseEvents' >-> formatEvents
+-----------------------------------------------------------------------
+
+---------------------------------Moves---------------------------------
+parseMove :: Parser (String, Integer, EventItem)
+parseMove = accept "Move" -# accept "Name" -# var #-
+            accept "Damage" # number #-
+            accept "Events" # parseEvents >->
+            (\((name, damage), event) -> (name, damage, event))
+
+parseMoves' :: Parser Moves
+parseMoves' = accept end -# Parser.return [] !
+               parseMove # parseMoves' >-> prepend
+parseMoves :: Parser Moves
+parseMoves = parseMoves' ? ((<=4) . length)
 -----------------------------------------------------------------------
 
 -----------------------------------Map---------------------------------
@@ -109,31 +131,37 @@ parseMap = (((number >-> fromInteger) # (mapContent >-> (map tile))) ?
 -----------------------------------World-------------------------------
 parseWorldItem :: Parser (Tile, TileItem)
 parseWorldItem = accept "Map" -# number # parseMap >->
-                 (\(n, m) -> (Map n, m)) !
-
+                 (\(n, m) -> (Map n, m))
+                 !
                  accept "Start" -# accept img -# var # parseEvents >->
                  (\(image, e) -> (Start, TileItem image e)) !
                  accept "Start" -# parseEvents >->
-                 (\e -> (Start, TileItem "" e)) !
-
+                 (\e -> (Start, TileItem "" e))
+                 !
                  accept "Free" -# number #- accept img # var >->
                  (\(n, image) -> (Free n, TileItem image NoEvent)) !
                  accept "Free" -# number >->
-                 (\n -> (Free n, TileItem "" NoEvent)) !
-
+                 (\n -> (Free n, TileItem "" NoEvent))
+                 !
                  accept "Wall" -# number #- accept img # var >->
                  (\(n, image) -> (Wall n, TileItem image NoEvent)) !
                  accept "Wall" -# number >->
-                 (\n -> (Wall n, TileItem "" NoEvent)) !
-
+                 (\n -> (Wall n, TileItem "" NoEvent))
+                 !
                  accept "Event" -#
                  number #- accept img # var # parseEvents >->
                  (\((n, image), e) -> (Event n, TileItem image e)) !
                  accept "Event" -# number # parseEvents >->
-                 (\(n, e) -> (Event n, TileItem "" e)) !
-
+                 (\(n, e) -> (Event n, TileItem "" e))
+                 !
+                 accept "Player" -# number #- accept img # var #-
+                 accept "Name" # var #-
+                 accept "Moves" # parseMoves #- accept end >->
+                 (\(((n, image), name), moves) ->
+                             (Player n, PlayerItem image name moves)) !
                  accept "Player" -# number #- accept img # var >->
-                 (\(n, image) -> (Player n, PlayerItem image))
+                 (\(n, image) ->
+                               (Player n, PlayerItem image "" []))
 
 parseWorldItems :: Parser World
 parseWorldItems = parseWorldItem # parseWorldItems >->
@@ -149,7 +177,7 @@ oneStart world = count == 1
         starts = lengthFilter Start
         lengthFilter = length . flip filter tiles . (==)
     foldCount _ (TileItem _ _) = error "Should never happen"
-    foldCount _ (PlayerItem _) = error "Should never happen"
+    foldCount _ (PlayerItem _ _ _) = error "Should never happen"
 
 formatWorld :: Maybe (World, String) -> Maybe World
 formatWorld Nothing = Nothing

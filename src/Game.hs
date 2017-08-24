@@ -100,18 +100,6 @@ animateFades stateRef fader ((renderState', (fadeLevel:xFL)):xRS) fA = do
 
 -------------------------------Events----------------------------------
 eventPoint' :: EventItem -> IORef State -> IO ()
-eventPoint' (EventItemList []) _ = return ()
-eventPoint' (EventItemList (nextEvent:xs)) stateRef = do
-  (event, _, _, _) <- readIORef stateRef
-  case event of
-    NoEvent -> do 
-      eventPoint' nextEvent stateRef
-      eventPoint' (EventItemList xs) stateRef
-    _ -> do
-      setTimer (Once 100) $ eventPoint' (EventItemList (nextEvent:xs))
-                                        stateRef
-      return ()
-
 eventPoint' (Text "") stateRef = do
   (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
   writeIORef stateRef (NoEvent, (m, p, picture, pImg), world, imgs)
@@ -173,7 +161,18 @@ eventPoint' (Teleport m p') stateRef = do
                                                      readIORef stateRef
     writeIORef stateRef (NoEvent, (m', p'', picture', pImgs'),
                          world', imgs'))
-  return ()
+
+eventPoint' (EventItemList []) _ = return ()
+eventPoint' (EventItemList (nextEvent:xs)) stateRef = do
+  (event, _, _, _) <- readIORef stateRef
+  case event of
+    NoEvent -> do 
+      eventPoint' nextEvent stateRef
+      eventPoint' (EventItemList xs) stateRef
+    _ -> do
+      setTimer (Once 100) $ eventPoint' (EventItemList (nextEvent:xs))
+                                        stateRef
+      return ()
 
 eventPoint' _ _ = return ()
 
