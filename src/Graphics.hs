@@ -10,7 +10,6 @@ module Graphics (Haste.Graphics.Canvas.Point,
                  drawMap,
                  parseDrawText,
                  drawText,
-                 nFullTextPoints,
                  drawFullText,
                  renderState,
                  renderStateOnTop,
@@ -108,8 +107,6 @@ headingPoint :: Double -> Point
 headingPoint l = (width / 2 - l * 13, 5 * padding)
 fullTextPoint :: Double -> Point
 fullTextPoint i = (fst textPoint1, padding * (5 + 5 * i))
-nFullTextPoints :: Double
-nFullTextPoints = (height - 5 * padding * 4) / 5 / padding
 
 drawFullText :: String -> [String] -> (Point, Point, Picture ())
 drawFullText h s = (p1, p2, do
@@ -122,7 +119,7 @@ drawFullText h s = (p1, p2, do
         (zip [fullTextPoint i | i <- [1..lS]] s))
     where
       p1 = (0, 0)
-      p2 = (0, snd (fullTextPoint (lS + nFullTextPoints)) / block)
+      p2 = (0, snd (fullTextPoint (lS + 1)) / block)
       lS = fromIntegral $ length s
 -----------------------------------------------------------------------
 

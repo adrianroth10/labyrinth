@@ -60,6 +60,12 @@ startMap ((_, MapContent (c, tiles)):xti)
   | otherwise = startMap xti
 startMap (_:xti) = startMap xti
 
+fades :: Double
+fades = 10
+fadeOut, fadeIn :: [Double]
+fadeOut = map (/fades) [0..fades]
+fadeIn = tail $ reverse fadeOut
+
 ---------------------------------Impure-------------------------------
 
 animateMove :: IORef State -> (Point -> IO ()) ->
@@ -121,7 +127,6 @@ eventPoint' (Text s) stateRef = do
 eventPoint' (FullText "" "") stateRef = do
   (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
   writeIORef stateRef (NoEvent, (m, p, picture, pImg), world, imgs)
-  renderState pImg picture p
 eventPoint' (FullText h s) stateRef = do
   (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
   writeIORef stateRef (FullText "" "",
@@ -134,9 +139,15 @@ eventPoint' (FullText h s) stateRef = do
     (do
        (_, (m', p', picture', pImg'), world', imgs') <-
                                                      readIORef stateRef
-       renderState pImg' picture' p'
-       writeIORef stateRef (NoEvent, (m', p', picture', pImg'),
-                            world', imgs'))
+       writeIORef stateRef (Locked, (m', p', picture', pImg'),
+                            world', imgs')
+       animateFades stateRef fullBlack [(renderState pImg' picture' p',
+                                         fadeIn)]
+                                       (do
+       (_, (m'', p'', picture'', pImg''), world'', imgs'') <-
+                                                     readIORef stateRef
+       writeIORef stateRef (NoEvent, (m'', p'', picture'', pImg''),
+                            world'', imgs'')))
   return ()             
     where
       (p1, p2, fullText) = drawFullText h sDraw
@@ -151,9 +162,6 @@ eventPoint' (Teleport m p') stateRef = do
   (_, (_, p, picture, pImg), world, imgs) <- readIORef stateRef
   let Just (MapContent newMap) = lookup m world
   let newPicture = drawMap imgs newMap
-  let fades = 10
-  let fadeOut = map (/fades) [0..fades]
-  let fadeIn = tail $ reverse fadeOut
   writeIORef stateRef (Locked,
                        (newMap, p', newPicture, pImg),
                        world, imgs)
