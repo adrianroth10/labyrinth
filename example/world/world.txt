@@ -26,7 +26,7 @@ Player 1 IMG world/Player.png
 
 Start IMG world/Start.png
 	FullText
-		Welcome
+		Welcome to my game
 		This is the Start. Click in the direction you want to move! :)
 		This text should be displayed over the whole page cause it's funny. You will see!!
 		EMPTYLINE

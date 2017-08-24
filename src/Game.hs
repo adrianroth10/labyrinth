@@ -2,7 +2,7 @@ module Game (play) where
 
 import World
 import Graphics
-
+ 
 import Haste
 import Haste.DOM
 import Haste.Events
@@ -12,6 +12,9 @@ import Data.List
 
 type MapState = (MapContent', Point, Picture (), Maybe Bitmap)
 type State = (EventItem, MapState, World, Imgs)
+
+takeWhileOneMore :: (a -> Bool) -> [a] -> [a]
+takeWhileOneMore p = foldr (\x ys -> if p x then x:ys else [x]) []
 
 validPoint :: MapContent' -> Point -> Maybe Point
 validPoint (c, tiles) (x, y)
@@ -34,16 +37,14 @@ updatePoint (x, y) (xS, yS)
     xT = fromIntegral x - width / 2
     yT = fromIntegral y - height / 2
 
-nInterPoints :: Double
-nInterPoints = 5
-interPoints :: Point -> Point -> [Point]
-interPoints (x1, y1) (x2, y2) = (take (floor nInterPoints) $ zip
+interPoints :: Double -> Point -> Point -> [Point]
+interPoints l (x1, y1) (x2, y2) = (take (floor l) $ zip
                                                 (iterate (+xdiff) x1)
                                                 (iterate (+ydiff) y1))
                                                   ++ [(x2, y2)]
   where
-    xdiff = (x2 - x1) / nInterPoints
-    ydiff = (y2 - y1) / nInterPoints
+    xdiff = (x2 - x1) / l
+    ydiff = (y2 - y1) / l
 
 startPoint :: MapContent' -> Point
 startPoint (c, tiles) = (x, y)
@@ -61,22 +62,35 @@ startMap (_:xti) = startMap xti
 
 ---------------------------------Impure-------------------------------
 
-animateFades :: (Double -> Picture ()) ->
+animateMove :: IORef State -> (Point -> IO ()) ->
+               [Point] -> IO () -> IO ()
+animateMove _ _ [] finalAction = finalAction
+animateMove stateRef renderState' (nextPoint:xs) fA = do
+  (mode, _, _, _) <- readIORef stateRef
+  case mode of
+    NoEvent -> animateMove stateRef renderState' [] fA
+    _ -> do
+      renderState' nextPoint
+      setTimer (Once 10) (animateMove stateRef renderState' xs fA)
+      return ()
+
+animateFades :: IORef State -> (Double -> Picture ()) ->
                 [(IO (), [Double])] ->
-                IORef State -> IO ()
-animateFades _ [] stateRef = do
-  (_, (m, p, picture, pImgs), world, imgs) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, (m, p, picture, pImgs), world, imgs)
-  return ()
-animateFades fader ((_, []):xRS) stateRef =
-                                        animateFades fader xRS stateRef
-animateFades fader ((renderState', (fadeLevel:xFL)):xRS) stateRef = do
-    renderState'
-    renderStateOnTop $ fader fadeLevel
-    setTimer (Once 20) (animateFades fader
-                                     ((renderState', xFL):xRS)
-                                     stateRef)
-    return ()
+                IO () -> IO ()
+animateFades _ _ [] finalAction = finalAction
+animateFades stateRef fader ((_, []):xRS) fA =
+                                     animateFades stateRef fader xRS fA
+animateFades stateRef fader ((renderState', (fadeLevel:xFL)):xRS) fA = do
+  (mode, _, _, _) <- readIORef stateRef
+  case mode of
+    NoEvent -> animateFades stateRef fader [] fA
+    _ -> do 
+      renderState'
+      renderStateOnTop (fader fadeLevel) (0, 0)
+      setTimer (Once 20) (animateFades stateRef fader
+                                       ((renderState', xFL):xRS)
+                                       fA)
+      return ()
 
 -------------------------------Events----------------------------------
 eventPoint' :: EventItem -> IORef State -> IO ()
@@ -98,7 +112,7 @@ eventPoint' (Text "") stateRef = do
   renderState pImg picture p
 eventPoint' (Text s) stateRef = do
   (_, m, world, imgs) <- readIORef stateRef
-  renderStateOnTop $ drawText (s1, s2)
+  renderStateOnTop (drawText (s1, s2)) (0, 0)
   writeIORef stateRef (Text rest2, m, world, imgs)
     where
       (s1, rest1) = parseDrawText s
@@ -110,16 +124,26 @@ eventPoint' (FullText "" "") stateRef = do
   renderState pImg picture p
 eventPoint' (FullText h s) stateRef = do
   (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
-  renderState pImg picture p
-  renderStateOnTop $ drawFullText h sDraw
-  writeIORef stateRef (FullText "" sRest,
+  writeIORef stateRef (FullText "" "",
                        (m, p, picture, pImg),
                        world, imgs)
+  renderStateOnTop fullText (0, 0)
+  setTimer (Once 2000) $ animateMove stateRef
+    (renderStateOnTop fullText)
+    (interPoints 1000 p1 p2)
+    (do
+       (_, (m', p', picture', pImg'), world', imgs') <-
+                                                     readIORef stateRef
+       renderState pImg' picture' p'
+       writeIORef stateRef (NoEvent, (m', p', picture', pImg'),
+                            world', imgs'))
+  return ()             
     where
+      (p1, p2, fullText) = drawFullText h sDraw
       sDraw = map fst sParsed
-      sRest = snd $ last sParsed
-      sParsed = take nFullTextPoints $ iterate (parseDrawText . snd)
-                                               $ parseDrawText s
+      sParsed = takeWhileOneMore ((/="") . snd) $
+                                 iterate (parseDrawText . snd) $
+                                 parseDrawText s
 
 eventPoint' (HTMLText s) _ = changeOutputHTML s
 
@@ -133,8 +157,14 @@ eventPoint' (Teleport m p') stateRef = do
   writeIORef stateRef (Locked,
                        (newMap, p', newPicture, pImg),
                        world, imgs)
-  animateFades fullBlack [(renderState pImg picture p, fadeOut),
-                     (renderState pImg newPicture p', fadeIn)] stateRef
+  animateFades stateRef fullBlack
+               [(renderState pImg picture p, fadeOut),
+               (renderState pImg newPicture p', fadeIn)]
+               (do
+    (_, (m', p'', picture', pImgs'), world', imgs') <-
+                                                     readIORef stateRef
+    writeIORef stateRef (NoEvent, (m', p'', picture', pImgs'),
+                         world', imgs'))
   return ()
 
 eventPoint' _ _ = return ()
@@ -148,18 +178,6 @@ eventPoint stateRef = do
   eventPoint' e stateRef
 -----------------------------------------------------------------------
 
-animateMovePlayer :: IORef State -> (Point -> IO ()) ->
-                     [Point] -> IO ()
-animateMovePlayer stateRef _ []  = do
-  (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, (m, p, picture, pImg), world, imgs)
-  eventPoint stateRef
-  return ()
-animateMovePlayer stateRef renderState' (nextState:xs)  = do
-  renderState' nextState
-  setTimer (Once 10) (animateMovePlayer stateRef renderState' xs)
-  return ()
-
 movePlayer :: IORef State -> (Int, Int) -> IO ()
 movePlayer stateRef mousePos = do
   (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
@@ -167,8 +185,15 @@ movePlayer stateRef mousePos = do
   case validPoint m (updatePoint mousePos p) of
     Just p' -> do 
       writeIORef stateRef (Locked, (m, p', picture, pImg), world, imgs)
-      animateMovePlayer stateRef
-                        (renderState pImg picture) (interPoints p p')
+      animateMove stateRef
+                  (renderState pImg picture)
+                  (interPoints 5 p p')
+                  (do
+        (_, (m', p'', picture', pImg'), world', imgs') <-
+                                                     readIORef stateRef
+        writeIORef stateRef (NoEvent, (m', p'', picture', pImg'),
+                             world', imgs')
+        eventPoint stateRef)
     Nothing -> return ()
   
 

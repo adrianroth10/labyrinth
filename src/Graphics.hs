@@ -104,21 +104,26 @@ drawText (s1, s2) = do
   font "20px italic Monospace" $ text textPoint1 s1
   font "20px italic Monospace" $ text textPoint2 s2
 
-headingPoint :: Point
-headingPoint = (50, 50)
+headingPoint :: Double -> Point
+headingPoint l = (width / 2 - l * 13, 5 * padding)
 fullTextPoint :: Double -> Point
-fullTextPoint i = (20, 50 + 40 * i)
-nFullTextPoints :: Int
-nFullTextPoints = floor $ (height - 50) / 40
+fullTextPoint i = (fst textPoint1, padding * (5 + 5 * i))
+nFullTextPoints :: Double
+nFullTextPoints = (height - 5 * padding * 4) / 5 / padding
 
-drawFullText :: String -> [String] -> Picture ()
-drawFullText h s = do
-  fullBlack 0.75
-  white $ font "30px italic Monospace" $ text headingPoint h
-  mapM_ (\(point, s') -> white (font "20px italic Monospace"
-        (text point s')))
-        (zip [fullTextPoint i | i <- [1..lS]] s)
-    where lS = fromIntegral $ length s
+drawFullText :: String -> [String] -> (Point, Point, Picture ())
+drawFullText h s = (p1, p2, do
+  drawShape (color (RGB 0 0 0))
+            (shapeRect (Rect 0 0 width (snd p2 * block)))
+
+  white $ font "40px italic Monospace" $
+          text (headingPoint (fromIntegral (length h))) h
+  mapM_ (uncurry ((.) (white . font "20px italic Monospace") . text))
+        (zip [fullTextPoint i | i <- [1..lS]] s))
+    where
+      p1 = (0, 0)
+      p2 = (0, snd (fullTextPoint (lS + nFullTextPoints)) / block)
+      lS = fromIntegral $ length s
 -----------------------------------------------------------------------
 
 ---------------------------Fading--------------------------------------
@@ -188,10 +193,12 @@ loadImages ((t, PlayerItem s):xti) = (:) <$> fmap (\img -> (t, img))
                                              loadImages xti
 loadImages ((_, _):xti) = loadImages xti
 
-renderStateOnTop :: Picture () -> IO ()
-renderStateOnTop picture = do 
+renderStateOnTop :: Picture () -> Point -> IO ()
+renderStateOnTop picture (x, y) = do 
   Just c <- getCanvasById "canvas"
-  renderOnTop c picture
+  renderOnTop c $ translateMap (x + (width / block -1) / 2)
+                               (y + (height / block - 1) / 2)
+                               picture 
 
 renderState :: Maybe Bitmap -> Picture () -> Point -> IO ()
 renderState pImg mapPicture (x, y) = do 
