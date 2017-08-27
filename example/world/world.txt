@@ -41,10 +41,46 @@ Player 1 IMG world/Player.png
 				Atttack!!!
 			END
 		END
+		Move
+			Name Third
+			Damage 10
+			Events
+			Text
+				Atttack!!!
+			END
+		END
+		Move
+			Name Fourth
+			Damage 10
+			Events
+			Text
+				Atttack!!!
+			END
+		END
 	END
 END
 
 Player 2 IMG world/Player2.png
+	Name This
+	Moves
+		Move
+			Name First
+			Damage 10
+			Events
+			Text
+				Atttack!!!
+			END
+		END
+		Move
+			Name Second
+			Damage 10
+			Events
+			Text
+				Atttack!!!
+			END
+		END
+	END
+END
 
 Start IMG world/Start.png
 	FullText
@@ -92,7 +128,26 @@ Event 4 IMG world/Event.png
 END
 
 Event 5 IMG world/Event.png
-	HTMLText
-		<p><a target="_blank" href="https://google.se">important link ;)</a></p>
+	Text
+		Let's fight!!
+	END
+	Fight
+		Start
+			Text
+				Go!
+			END
+		END
+		Player 1
+		Player 2
+		Win
+			Text
+				You win!
+			END
+		END
+		Lose
+			Text
+				You Lose!
+			END
+		END
 	END
 END

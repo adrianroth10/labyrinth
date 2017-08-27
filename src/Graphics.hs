@@ -13,6 +13,8 @@ module Graphics (Haste.Graphics.Canvas.Point,
                  drawText,
                  drawFullText,
                  drawPlayers,
+                 mergePlayerPictures,
+                 updatePlayers,
                  drawMoves,
                  renderState,
                  renderStateOnTop,
@@ -39,6 +41,9 @@ white = color $ RGB 255 255 255
 red = color $ RGB 255 0 0
 yellow = color $ RGB 255 255 0
 blue = color $ RGBA 0 0 255 0.5
+
+(<+>) :: Point -> Point -> Point
+(<+>) (x1, y1) (x2, y2) = (x1 + x2, y1 + y2)
 
 drawShape :: (Picture () -> Picture ()) -> Shape () -> Picture ()
 drawShape col = col . fill
@@ -184,25 +189,56 @@ translateMap x y picture = translate (x_i, y_i) picture
     y_i = -(y - (height / block - 1) / 2) * block
 
 ---------------------------Fight---------------------------------------
-drawPlayerStats :: TileItem -> Picture ()
-drawPlayerStats (PlayerItem _ name _) = do
-  font "20px italic Monospace" $ text (0, height / 10) name
-  font "20px italic Monospace" $ text (0, height / 5) $ show hp
-drawPlayerStats _ = return ()
+wh, x1', x2' :: Double
+wh = min width height / 3
+x1' = width / 6
+x2' = width * 2 / 3
 
-drawPlayers :: (Bitmap, Bitmap) -> (TileItem, TileItem) ->
+localNamePoint, localHpPoint, localStat1Point, localStat2Point :: Point
+globalPlayer1Point, globalPlayer2Point :: Point
+localNamePoint = (0, height / 10)
+localHpPoint = (0, height / 10 + 20)
+localStat1Point = (x2', 0)
+localStat2Point = (x1', 0)
+globalPlayer1Point = (0, height / 3)
+globalPlayer2Point = (0, 0)
+
+localPlayer1Rect, localPlayer2Rect :: Rect
+localPlayer1Rect = Rect x1' 0 wh wh
+localPlayer2Rect = Rect x2' 0 wh wh
+
+drawHp :: Double -> Picture ()
+drawHp hp = do
+  font "20px italic Monospace" $ text localHpPoint $ show $ floor hp
+
+drawPlayerName :: TileItem -> Picture ()
+drawPlayerName (PlayerItem _ name _) = do
+  font "20px italic Monospace" $ text localNamePoint name
+drawPlayerName _ = return ()
+
+drawPlayers :: (Bitmap, Bitmap) -> (TileItem, TileItem) -> 
                (Picture (), Picture ())
 drawPlayers (p1Img, p2Img) (pItem1, pItem2) =
   (do
-    drawScaled p1Img (Rect x1 0 wh wh)
-    translate (x2, 0) (drawPlayerStats pItem1)
+    drawScaled p1Img localPlayer1Rect
+    translate localStat1Point $ drawPlayerName pItem1
   , do
-    translate (x1, 0) (drawPlayerStats pItem2)
-    drawScaled p2Img (Rect x2 0 wh wh))
-  where 
-    wh = min width height / 3
-    x1 = width / 6
-    x2 = width * 2 / 3
+    translate localStat2Point $ drawPlayerName pItem2
+    drawScaled p2Img localPlayer2Rect)
+
+mergePlayerPictures :: (Picture (), Picture ()) -> Picture ()
+mergePlayerPictures (pImg1, pImg2) = do
+  fullWhite 1
+  translate globalPlayer1Point pImg1 
+  translate globalPlayer2Point pImg2
+
+updatePlayers :: Picture () -> Vector -> Picture ()
+updatePlayers base (hp1, hp2) = do
+  base
+  translate (globalPlayer1Point <+> localStat1Point <+> localHpPoint) $
+            drawHp hp1
+  translate (globalPlayer2Point <+> localStat2Point <+> localHpPoint) $
+            drawHp hp2
 
 moveNames :: Moves -> (String, String)
 moveNames moves = (foldlS (take 2 moves), foldlS (drop 2 moves))

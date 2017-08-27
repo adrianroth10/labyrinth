@@ -10,7 +10,7 @@ import Haste.Events
 import Data.IORef
 import Data.List
 
-type MapState = (MapContent', Point, Picture (), Maybe Bitmap)
+type MapState = (MapContent', Point, Point -> IO ())
 type State = (EventItem, MapState, World, Imgs)
 
 takeWhileOneMore :: (a -> Bool) -> [a] -> [a]
@@ -66,6 +66,27 @@ fadeOut, fadeIn :: [Double]
 fadeOut = map (/fades) [0..fades]
 fadeIn = tail $ reverse fadeOut
 
+flippedLookup :: Eq a => a -> [(b, a)] -> Maybe b
+flippedLookup m = lookup m . uncurry (flip zip) . unzip 
+
+appendEvents :: EventItem -> EventItem -> EventItem
+appendEvents (EventItemList l1) (EventItemList l2) = EventItemList $ l1 ++ l2
+appendEvents (EventItemList l) event' = EventItemList $ l ++ [event']
+appendEvents event' (EventItemList l) = EventItemList $ event':l
+appendEvents event1 event2 = EventItemList [event1, event2]
+
+drawPlayers' :: (Tile, Tile) -> World -> Imgs -> (Picture (), Picture ())
+drawPlayers' (player1, player2) world imgs =
+                drawPlayers (pBit1, pBit2) (playerItem1, playerItem2)
+  where
+     Just playerItem1 = lookup player1 world
+     Just playerItem2 = lookup player2 world
+     Just pBit1 = lookup player1 imgs
+     Just pBit2 = lookup player1 imgs
+
+startHp :: Point
+startHp = (100, 100)
+
 ---------------------------------Impure-------------------------------
 
 animateMove :: IORef State -> (Point -> IO ()) ->
@@ -99,12 +120,12 @@ animateFades stateRef fader ((renderState', (fadeLevel:xFL)):xRS) fA = do
       return ()
 
 -------------------------------Events----------------------------------
-eventPoint' :: EventItem -> IORef State -> IO ()
-eventPoint' (Text "") stateRef = do
-  (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, (m, p, picture, pImg), world, imgs)
-  renderState pImg picture p
-eventPoint' (Text s) stateRef = do
+event :: EventItem -> IORef State -> IO ()
+event (Text "") stateRef = do
+  (_, (m, p, render), world, imgs) <- readIORef stateRef
+  writeIORef stateRef (NoEvent, (m, p, render), world, imgs)
+  render p
+event (Text s) stateRef = do
   (_, m, world, imgs) <- readIORef stateRef
   renderStateOnTop (drawText (s1, s2)) (0, 0)
   writeIORef stateRef (Text rest2, m, world, imgs)
@@ -112,30 +133,24 @@ eventPoint' (Text s) stateRef = do
       (s1, rest1) = parseDrawText s
       (s2, rest2) = parseDrawText rest1
 
-eventPoint' (FullText "" "") stateRef = do
-  (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, (m, p, picture, pImg), world, imgs)
-eventPoint' (FullText h s) stateRef = do
-  (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
-  writeIORef stateRef (FullText "" "",
-                       (m, p, picture, pImg),
+event (FullText "" "") stateRef = do
+  (_, m, world, imgs) <- readIORef stateRef
+  writeIORef stateRef (NoEvent, m, world, imgs)
+event (FullText h s) stateRef = do
+  (_, (m, p, render), world, imgs) <- readIORef stateRef
+  writeIORef stateRef (FullText "" "", (m, p, render),
                        world, imgs)
   renderStateOnTop fullText (0, 0)
   setTimer (Once 2000) $ animateMove stateRef
     (renderStateOnTop fullText)
     (interPoints 1000 p1 p2)
     (do
-       (_, (m', p', picture', pImg'), world', imgs') <-
-                                                     readIORef stateRef
-       writeIORef stateRef (Locked, (m', p', picture', pImg'),
-                            world', imgs')
-       animateFades stateRef fullBlack [(renderState pImg' picture' p',
-                                         fadeIn)]
+       (_, m', world', imgs') <- readIORef stateRef
+       writeIORef stateRef (Locked, m', world', imgs')
+       animateFades stateRef fullBlack [(render p, fadeIn)]
                                        (do
-       (_, (m'', p'', picture'', pImg''), world'', imgs'') <-
-                                                     readIORef stateRef
-       writeIORef stateRef (NoEvent, (m'', p'', picture'', pImg''),
-                            world'', imgs'')))
+       (_, m'', world'', imgs'') <- readIORef stateRef
+       writeIORef stateRef (NoEvent, m'', world'', imgs'')))
   return ()             
     where
       (p1, p2, fullText) = drawFullText h sDraw
@@ -144,72 +159,99 @@ eventPoint' (FullText h s) stateRef = do
                                  iterate (parseDrawText . snd) $
                                  parseDrawText s
 
-eventPoint' (HTMLText s) _ = changeOutputHTML s
+event (HTMLText s) _ = changeOutputHTML s
 
-eventPoint' (Teleport m p') stateRef = do
-  (_, (_, p, picture, pImg), world, imgs) <- readIORef stateRef
+event (Teleport m p') stateRef = do
+  (_, (_, p, render), world, imgs) <- readIORef stateRef
   let Just (MapContent newMap) = lookup m world
   let newPicture = drawMap imgs newMap
+  let pImg = lookup (Player 1) imgs
   writeIORef stateRef (Locked,
-                       (newMap, p', newPicture, pImg),
+                       (newMap, p', renderState pImg newPicture),
                        world, imgs)
   animateFades stateRef fullBlack
-               [(renderState pImg picture p, fadeOut),
-               (renderState pImg newPicture p', fadeIn)]
+               [(render p, fadeOut),
+                (renderState pImg newPicture p', fadeIn)]
                (do
-    (_, (m', p'', picture', pImgs'), world', imgs') <-
-                                                     readIORef stateRef
-    writeIORef stateRef (NoEvent, (m', p'', picture', pImgs'),
-                         world', imgs'))
+    (_, m', world', imgs') <- readIORef stateRef
+    writeIORef stateRef (NoEvent, m', world', imgs'))
 
-eventPoint' (EventItemList []) _ = return ()
-eventPoint' (EventItemList (nextEvent:xs)) stateRef = do
-  (event, _, _, _) <- readIORef stateRef
-  case event of
+event (Fight NoEvent (player1, player2) end) stateRef = do
+  (_, (m, p, _), world, imgs) <- readIORef stateRef
+  let Just mapTile = flippedLookup (MapContent m) world
+  let Just (PlayerItem _ _ moves) = lookup player1 world
+  let (pImg1, pImg2) = drawPlayers' (player1, player2) world imgs
+  let fightImage = mergePlayerPictures (pImg1, pImg2)
+  let render = flip renderStateOnTop (0, 0) . updatePlayers fightImage
+  render startHp
+  renderStateOnTop (drawMoves moves) (0, 0)
+  writeIORef stateRef (Fight NoEvent (player1, player2) end,
+                       (m, startHp, render), world, imgs)
+  event (EventItemList [Teleport mapTile p]) stateRef
+event (Fight e1 players end) stateRef = do
+  (_, (m, p, _), world, imgs) <- readIORef stateRef
+  let (pImg1, pImg2) = drawPlayers' players world imgs
+  let fightImage = mergePlayerPictures (pImg1, pImg2)
+  let render = renderStateOnTop fightImage . const (0, 0)
+  render startHp
+  writeIORef stateRef (NoEvent, (m, p, render), world, imgs)
+  event (appendEvents e1 (Fight NoEvent players end)) stateRef
+
+event (EventItemList []) _ = return ()
+event (EventItemList (nextEvent:xs)) stateRef = do
+  (event', _, _, _) <- readIORef stateRef
+  case event' of
     NoEvent -> do 
-      eventPoint' nextEvent stateRef
-      eventPoint' (EventItemList xs) stateRef
+      event nextEvent stateRef
+      event (EventItemList xs) stateRef
     _ -> do
-      setTimer (Once 100) $ eventPoint' (EventItemList (nextEvent:xs))
+      setTimer (Once 100) $ event (EventItemList (nextEvent:xs))
                                         stateRef
       return ()
 
-eventPoint' _ _ = return ()
+event _ _ = return ()
 
 
 eventPoint :: IORef State -> IO ()
 eventPoint stateRef = do
-  (_, ((c, tiles), (x, y), _, _), world, _) <- readIORef stateRef
+  (_, ((c, tiles), (x, y), _), world, _) <- readIORef stateRef
   let tile = tiles !! floor (x + c * y)
   let Just (TileItem _ e) = lookup tile world
-  eventPoint' e stateRef
+  event e stateRef
 -----------------------------------------------------------------------
 
-movePlayer :: IORef State -> (Int, Int) -> IO ()
-movePlayer stateRef mousePos = do
-  (_, (m, p, picture, pImg), world, imgs) <- readIORef stateRef
+playerMove :: IORef State -> (Int, Int) -> IO ()
+playerMove stateRef mousePos = do
+  (_, (m, p, render), world, imgs) <- readIORef stateRef
   changeOutputHTML ""
   case validPoint m (updatePoint mousePos p) of
     Just p' -> do 
-      writeIORef stateRef (Locked, (m, p', picture, pImg), world, imgs)
+      writeIORef stateRef (Locked, (m, p', render), world, imgs)
       animateMove stateRef
-                  (renderState pImg picture)
+                  (render)
                   (interPoints 5 p p')
                   (do
-        (_, (m', p'', picture', pImg'), world', imgs') <-
-                                                     readIORef stateRef
-        writeIORef stateRef (NoEvent, (m', p'', picture', pImg'),
-                             world', imgs')
+        (_, m', world', imgs') <- readIORef stateRef
+        writeIORef stateRef (NoEvent, m', world', imgs')
         eventPoint stateRef)
     Nothing -> return ()
-  
+
+fightMove :: EventItem -> IORef State -> (Int, Int) -> IO ()
+fightMove (Fight _ _ _) stateRef _ = do
+  (_, (m, hp, render), world, imgs) <- readIORef stateRef
+--  let Just playerItem1 = lookup player1 world
+--  let Just playerItem2 = lookup player2 world
+--  render hp
+  writeIORef stateRef (NoEvent, (m, hp, render), world, imgs)
+fightMove _ _ _ = return ()
 
 onClick :: IORef State -> MouseData -> IO ()
 onClick stateRef (MouseData mousePos _ _) = do
-  (event, _, _, _) <- readIORef stateRef 
-  case event of
-    NoEvent -> movePlayer stateRef mousePos
-    _ -> eventPoint' event stateRef
+  (event', _, _, _) <- readIORef stateRef 
+  case event' of
+    NoEvent -> playerMove stateRef mousePos
+    Fight _ _ _ -> fightMove event' stateRef mousePos
+    _ -> event event' stateRef
 
 play :: Maybe String -> IO ()
 play (Just worldStr) = do 
@@ -222,7 +264,8 @@ play (Just worldStr) = do
       let sPicture = drawMap imgs sMap
       let pImg = lookup (Player 1) imgs
 
-      stateRef <- newIORef (NoEvent, (sMap, sPoint, sPicture, pImg),
+      stateRef <- newIORef (NoEvent,
+                            (sMap, sPoint, renderState pImg sPicture),
                             world, imgs)
       onEvent ce Click $ onClick stateRef
       renderState pImg sPicture sPoint
