@@ -1,6 +1,7 @@
 module Graphics (Haste.Graphics.Canvas.Point,
                  Haste.Graphics.Canvas.Picture,
                  Haste.Graphics.Canvas.Bitmap,
+                 Haste.Graphics.Canvas.translate,
                  Imgs,
                  width,
                  height,
@@ -11,6 +12,8 @@ module Graphics (Haste.Graphics.Canvas.Point,
                  parseDrawText,
                  drawText,
                  drawFullText,
+                 drawPlayers,
+                 drawMoves,
                  renderState,
                  renderStateOnTop,
                  loadImages) where
@@ -19,6 +22,7 @@ import World
 import Haste.Graphics.Canvas
 
 import Data.Maybe
+import Data.List
 
 type Imgs = [(Tile, Bitmap)]
 
@@ -170,13 +174,46 @@ drawPlayer Nothing = drawShape blue $ circle (width / 2, height / 2)
                                    (block / 2 - 10)
 drawPlayer (Just img) = drawScaled img playerRect
   where
-    playerRect = Rect (width / 2 - block / 2) (height / 2 - block / 2) block block
+    playerRect = Rect (width / 2 - block / 2) (height / 2 - block / 2)
+                      block block
 
 translateMap :: Double -> Double -> Picture () -> Picture ()
 translateMap x y picture = translate (x_i, y_i) picture
   where
     x_i = -(x - (width / block - 1) / 2) * block
     y_i = -(y - (height / block - 1) / 2) * block
+
+---------------------------Fight---------------------------------------
+drawPlayerStats :: TileItem -> Picture ()
+drawPlayerStats (PlayerItem _ name _) = do
+  font "20px italic Monospace" $ text (0, height / 10) name
+  font "20px italic Monospace" $ text (0, height / 5) $ show hp
+drawPlayerStats _ = return ()
+
+drawPlayers :: (Bitmap, Bitmap) -> (TileItem, TileItem) ->
+               (Picture (), Picture ())
+drawPlayers (p1Img, p2Img) (pItem1, pItem2) =
+  (do
+    drawScaled p1Img (Rect x1 0 wh wh)
+    translate (x2, 0) (drawPlayerStats pItem1)
+  , do
+    translate (x1, 0) (drawPlayerStats pItem2)
+    drawScaled p2Img (Rect x2 0 wh wh))
+  where 
+    wh = min width height / 3
+    x1 = width / 6
+    x2 = width * 2 / 3
+
+moveNames :: Moves -> (String, String)
+moveNames moves = (foldlS (take 2 moves), foldlS (drop 2 moves))
+  where foldlS = foldl1 (\s m -> s ++ m) . intersperse "         " .
+                 map (\(m, _, _) -> m)
+
+drawMoves :: Moves -> Picture ()
+drawMoves moves = do
+  drawTextBox
+  drawText $ moveNames moves
+-----------------------------------------------------------------------
 
 ---------------------------------Impure--------------------------------
 loadImages :: World -> IO Imgs
