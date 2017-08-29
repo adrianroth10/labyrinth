@@ -16,6 +16,26 @@ type State = (EventItem, MapState, World, Imgs)
 takeWhileOneMore :: (a -> Bool) -> [a] -> [a]
 takeWhileOneMore p = foldr (\x ys -> if p x then x:ys else [x]) []
 
+flippedLookup :: Eq a => a -> [(b, a)] -> Maybe b
+flippedLookup m = lookup m . uncurry (flip zip) . unzip 
+
+-------------------------------Init------------------------------------
+startMap :: World -> MapContent'
+startMap [] = error "No start found"
+startMap ((_, MapContent (c, tiles)):xti)
+  | elem Start tiles = (c, tiles)
+  | otherwise = startMap xti
+startMap (_:xti) = startMap xti
+
+startPoint :: MapContent' -> Point
+startPoint (c, tiles) = (x, y)
+  where
+    (Just i) = elemIndex Start tiles
+    x = fromIntegral (mod i (floor c))
+    y = fromInteger (floor ((realToFrac i) / c))
+-----------------------------------------------------------------------
+
+-------------------------MovePlayer------------------------------------
 validPoint :: MapContent' -> Point -> Maybe Point
 validPoint (c, tiles) (x, y)
   | x < 0 || y < 0 || x >= c || i >= length tiles = Nothing
@@ -36,6 +56,14 @@ updatePoint (x, y) (xS, yS)
   where
     xT = fromIntegral x - width / 2
     yT = fromIntegral y - height / 2
+-----------------------------------------------------------------------
+
+-------------------------Animation------------------------------------
+fades :: Double
+fades = 10
+fadeOut, fadeIn :: [Double]
+fadeOut = map (/fades) [0..fades]
+fadeIn = tail $ reverse fadeOut
 
 interPoints :: Double -> Point -> Point -> [Point]
 interPoints l (x1, y1) (x2, y2) = (take (floor l) $ zip
@@ -45,39 +73,13 @@ interPoints l (x1, y1) (x2, y2) = (take (floor l) $ zip
   where
     xdiff = (x2 - x1) / l
     ydiff = (y2 - y1) / l
+-----------------------------------------------------------------------
 
-startPoint :: MapContent' -> Point
-startPoint (c, tiles) = (x, y)
-  where
-    (Just i) = elemIndex Start tiles
-    x = fromIntegral (mod i (floor c))
-    y = fromInteger (floor ((realToFrac i) / c))
-
-startMap :: World -> MapContent'
-startMap [] = error "No start found"
-startMap ((_, MapContent (c, tiles)):xti)
-  | elem Start tiles = (c, tiles)
-  | otherwise = startMap xti
-startMap (_:xti) = startMap xti
-
-fades :: Double
-fades = 10
-fadeOut, fadeIn :: [Double]
-fadeOut = map (/fades) [0..fades]
-fadeIn = tail $ reverse fadeOut
-
-flippedLookup :: Eq a => a -> [(b, a)] -> Maybe b
-flippedLookup m = lookup m . uncurry (flip zip) . unzip 
-
-appendEvents :: EventItem -> EventItem -> EventItem
-appendEvents (EventItemList l1) (EventItemList l2) = EventItemList $ l1 ++ l2
-appendEvents (EventItemList l) event' = EventItemList $ l ++ [event']
-appendEvents event' (EventItemList l) = EventItemList $ event':l
-appendEvents event1 event2 = EventItemList [event1, event2]
-
-drawPlayers' :: (Tile, Tile) -> World -> Imgs -> (Picture (), Picture ())
+------------------------------Fight------------------------------------
+drawPlayers' :: (Tile, Tile) -> World -> Imgs ->
+                (Picture (), Picture ())
 drawPlayers' (player1, player2) world imgs =
-                drawPlayers (pBit1, pBit2) (playerItem1, playerItem2)
+                  drawPlayers (pBit1, pBit2) (playerItem1, playerItem2)
   where
      Just playerItem1 = lookup player1 world
      Just playerItem2 = lookup player2 world
@@ -87,7 +89,49 @@ drawPlayers' (player1, player2) world imgs =
 startHp :: Point
 startHp = (100, 100)
 
+getIndex :: (Int, Int) -> Int
+getIndex (x, y)
+  | xT < 0 && yT < 0 = 0
+  | xT > 0 && yT < 0 = 1
+  | xT < 0 && yT > 0 = 2
+  | otherwise = 3
+    where
+      xT = fromIntegral x - width / 2
+      yT = fromIntegral y - height / 2
+
+extract :: [a] -> Int -> a
+extract [] _ = error "Not supposed to happen"
+extract [x] _ = x
+extract (x:_) 0 = x
+extract (_:xs) i = extract xs (i - 1)
+
+-- Creates an almost random number in the interval [0, h)
+pseudoRandom :: Int -> (Int, Int) -> Int
+pseudoRandom h (x, y) = mod (x + y) h
+
+fight :: World -> (Tile, Tile) -> Point -> (Int, Int) ->
+         (EventItem, EventItem) -> (Point, EventItem)
+fight world (player1, player2) hp mousePos end
+  | hp2 <= 0 = ((hp1, 0), fst end)
+  | hp1 <= 0 = ((0, hp2), snd end)
+  | otherwise = ((hp1, hp2),
+                EventItemList [Text (name1 ++ " used " ++ attack1), e1,
+                               Text (name2 ++ " used " ++ attack2), e2,
+                               Fight Locked (player1, player2) end])
+  where
+    Just (PlayerItem _ name1 moves1) = lookup player1 world
+    Just (PlayerItem _ name2 moves2) = lookup player2 world
+    (attack1, damage1, e1) = extract moves1 (getIndex mousePos)
+    (attack2, damage2, e2) = extract moves2
+                                     (pseudoRandom (length moves2)
+                                                   mousePos)
+    (hp1, hp2) = hp <+> (-damage2, -damage1)
+-----------------------------------------------------------------------
+
+
+-----------------------------------------------------------------------
 ---------------------------------Impure-------------------------------
+-----------------------------------------------------------------------
 
 animateMove :: IORef State -> (Point -> IO ()) ->
                [Point] -> IO () -> IO ()
@@ -176,28 +220,32 @@ event (Teleport m p') stateRef = do
     (_, m', world', imgs') <- readIORef stateRef
     writeIORef stateRef (NoEvent, m', world', imgs'))
 
-event (Fight NoEvent (player1, player2) end) stateRef = do
+event (Fight Locked players end) stateRef = do
+  (_, m, world, imgs) <- readIORef stateRef
+  writeIORef stateRef (Fight Locked players end,
+                       m, world, imgs)
+event (Fight e1 (player1, player2) (win, lose)) stateRef = do
   (_, (m, p, _), world, imgs) <- readIORef stateRef
   let Just mapTile = flippedLookup (MapContent m) world
+  let teleport = Teleport mapTile p
+
   let Just (PlayerItem _ _ moves) = lookup player1 world
   let (pImg1, pImg2) = drawPlayers' (player1, player2) world imgs
-  let fightImage = mergePlayerPictures (pImg1, pImg2)
+  fightImage <- return $ do
+    mergePlayerPictures (pImg1, pImg2)
+    drawMoves moves
   let render = flip renderStateOnTop (0, 0) . updatePlayers fightImage
+
   render startHp
-  renderStateOnTop (drawMoves moves) (0, 0)
-  writeIORef stateRef (Fight NoEvent (player1, player2) end,
-                       (m, startHp, render), world, imgs)
-  event (EventItemList [Teleport mapTile p]) stateRef
-event (Fight e1 players end) stateRef = do
-  (_, (m, p, _), world, imgs) <- readIORef stateRef
-  let (pImg1, pImg2) = drawPlayers' players world imgs
-  let fightImage = mergePlayerPictures (pImg1, pImg2)
-  let render = renderStateOnTop fightImage . const (0, 0)
-  render startHp
-  writeIORef stateRef (NoEvent, (m, p, render), world, imgs)
-  event (appendEvents e1 (Fight NoEvent players end)) stateRef
+  writeIORef stateRef (NoEvent, (m, startHp, render), world, imgs)
+  event (EventItemList [e1, Fight Locked (player1, player2)
+                                  (EventItemList [win, teleport],
+                                   EventItemList [lose, teleport])])
+        stateRef
 
 event (EventItemList []) _ = return ()
+event (EventItemList (EventItemList l:xs)) stateRef = 
+                               event (EventItemList (l ++ xs)) stateRef
 event (EventItemList (nextEvent:xs)) stateRef = do
   (event', _, _, _) <- readIORef stateRef
   case event' of
@@ -237,12 +285,13 @@ playerMove stateRef mousePos = do
     Nothing -> return ()
 
 fightMove :: EventItem -> IORef State -> (Int, Int) -> IO ()
-fightMove (Fight _ _ _) stateRef _ = do
+fightMove (Fight _ players end) stateRef mousePos = do
   (_, (m, hp, render), world, imgs) <- readIORef stateRef
---  let Just playerItem1 = lookup player1 world
---  let Just playerItem2 = lookup player2 world
---  render hp
-  writeIORef stateRef (NoEvent, (m, hp, render), world, imgs)
+  let (newHp, event') = fight world players hp mousePos end
+  render newHp
+  writeIORef stateRef (NoEvent,
+                       (m, newHp, render), world, imgs)
+  event event' stateRef
 fightMove _ _ _ = return ()
 
 onClick :: IORef State -> MouseData -> IO ()

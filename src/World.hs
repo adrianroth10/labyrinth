@@ -18,7 +18,7 @@ data TileItem = MapContent (Double, [Tile]) |
                 TileItem String EventItem |
                 PlayerItem String String Moves deriving (Eq, Show)
 type MapContent' = (Double, [Tile])
-type Moves = [(String, Integer, EventItem)]
+type Moves = [(String, Double, EventItem)]
 data EventItem = NoEvent |
                  Locked |
                  Text String |
@@ -101,11 +101,12 @@ parseEvents = parseEvents' >-> formatEvents
 -----------------------------------------------------------------------
 
 ---------------------------------Moves---------------------------------
-parseMove :: Parser (String, Integer, EventItem)
+parseMove :: Parser (String, Double, EventItem)
 parseMove = accept "Move" -# accept "Name" -# var #-
             accept "Damage" # number #-
             accept "Events" # parseEvents >->
-            (\((name, damage), event) -> (name, damage, event))
+            (\((name, damage), event) ->
+                                    (name, fromIntegral damage, event))
 
 parseMoves' :: Parser Moves
 parseMoves' = accept end -# Parser.return [] !

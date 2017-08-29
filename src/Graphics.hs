@@ -2,6 +2,7 @@ module Graphics (Haste.Graphics.Canvas.Point,
                  Haste.Graphics.Canvas.Picture,
                  Haste.Graphics.Canvas.Bitmap,
                  Haste.Graphics.Canvas.translate,
+                 (<+>),
                  Imgs,
                  width,
                  height,
@@ -42,7 +43,7 @@ red = color $ RGB 255 0 0
 yellow = color $ RGB 255 255 0
 blue = color $ RGBA 0 0 255 0.5
 
-(<+>) :: Point -> Point -> Point
+(<+>) :: Num a => (a, a) -> (a, a) -> (a, a)
 (<+>) (x1, y1) (x2, y2) = (x1 + x2, y1 + y2)
 
 drawShape :: (Picture () -> Picture ()) -> Shape () -> Picture ()
@@ -207,9 +208,11 @@ localPlayer1Rect, localPlayer2Rect :: Rect
 localPlayer1Rect = Rect x1' 0 wh wh
 localPlayer2Rect = Rect x2' 0 wh wh
 
+doubleToInteger :: Double -> Integer
+doubleToInteger = floor
 drawHp :: Double -> Picture ()
 drawHp hp = do
-  font "20px italic Monospace" $ text localHpPoint $ show $ floor hp
+  font "20px italic Monospace" $ text localHpPoint $ show $ doubleToInteger hp
 
 drawPlayerName :: TileItem -> Picture ()
 drawPlayerName (PlayerItem _ name _) = do

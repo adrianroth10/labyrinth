@@ -2,7 +2,7 @@ Map 1
 8
 10 10 10 10 10 10 10 31
 10 20 20 20 20 20 20 20
-34 10 10 34 10 10 20 33
+34 10 10 35 10 10 20 33
 10 20 20  0 20 10 20 10
 10 20 20 20 20 10 20 10
 34 10 10 10 10 34 10 10
@@ -19,11 +19,11 @@ Map 2
 10 20 10 
 10 20 10 
 10 20 10 
-10 10 30 
+10 10 35 
 END
 
 Player 1 IMG world/Player.png
-	Name This
+	Name You
 	Moves
 		Move
 			Name First
@@ -35,7 +35,7 @@ Player 1 IMG world/Player.png
 		END
 		Move
 			Name Second
-			Damage 10
+			Damage 20
 			Events
 			Text
 				Atttack!!!
@@ -43,7 +43,7 @@ Player 1 IMG world/Player.png
 		END
 		Move
 			Name Third
-			Damage 10
+			Damage 30
 			Events
 			Text
 				Atttack!!!
@@ -51,7 +51,7 @@ Player 1 IMG world/Player.png
 		END
 		Move
 			Name Fourth
-			Damage 10
+			Damage 40
 			Events
 			Text
 				Atttack!!!
@@ -61,7 +61,7 @@ Player 1 IMG world/Player.png
 END
 
 Player 2 IMG world/Player2.png
-	Name This
+	Name Enemy
 	Moves
 		Move
 			Name First
@@ -73,7 +73,7 @@ Player 2 IMG world/Player2.png
 		END
 		Move
 			Name Second
-			Damage 10
+			Damage 20
 			Events
 			Text
 				Atttack!!!
@@ -128,6 +128,12 @@ Event 4 IMG world/Event.png
 END
 
 Event 5 IMG world/Event.png
+	HTMLText
+		<p><a target="_blank" href="https://google.se">important link ;)</a></p>
+	END
+END
+
+Event 6 IMG world/Event.png
 	Text
 		Let's fight!!
 	END
