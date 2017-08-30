@@ -4,12 +4,15 @@ module World (World,
               MapContent',
               Moves,
               EventItem (NoEvent, Locked, Text, FullText,
-                         HTMLText, Teleport, Fight, EventItemList),
+                         HTMLText, Teleport, Fight, AnimateParallel,
+                         AnimateSerial, EventItemList),
+              AnimationInfo (AnimationInfo),
               eqTile,
               parseWorld) where
 
 import Parser
 
+type Point = (Double, Double)
 type World = [(Tile, TileItem)]
 data Tile = Start | Free Integer |
             Wall Integer | Event Integer |
@@ -24,9 +27,16 @@ data EventItem = NoEvent |
                  Text String |
                  FullText String String |
                  HTMLText String |
-                 Teleport Tile (Double, Double) |
+                 Teleport Tile Point |
                  Fight EventItem (Tile, Tile) (EventItem, EventItem) |
+                 AnimateParallel AnimationInfo |
+                 AnimateSerial AnimationInfo |
                  EventItemList [EventItem] deriving (Eq, Show)
+data AnimationInfo = AnimationInfo [(Point -> IO (), [Point])] (IO ())
+instance Show AnimationInfo where
+  show = const "" 
+instance Eq AnimationInfo where
+  (==) _ _ = True
 
 end, img, emptyLine :: String
 end = "END"

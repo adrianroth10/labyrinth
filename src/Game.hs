@@ -65,6 +65,12 @@ fadeOut, fadeIn :: [Point]
 fadeOut = map (\f -> (f/fades, 0)) [0..fades]
 fadeIn = tail $ reverse fadeOut
 
+fakePointRender :: Point -> (Point -> IO ()) -> (Double -> Picture ()) ->
+                   Point -> IO ()
+fakePointRender point render fader (f, _) = do
+  render p
+  renderOnTop (fader f) (0, 0)
+
 interPoints :: Double -> Point -> Point -> [Point]
 interPoints l (x1, y1) (x2, y2) = (take (floor l) $ zip
                                                 (iterate (+xdiff) x1)
@@ -133,7 +139,7 @@ fight world (player1, player2) hp mousePos end
 ---------------------------------Impure--------------------------------
 -----------------------------------------------------------------------
 
-animateParallel :: IORef State -> [((Point -> IO ()), [Point])] ->
+animateParallel :: IORef State -> [(Point -> IO (), [Point])] ->
                    IO () -> IO ()
 animateParallel _ [] finalAction = finalAction
 animateParallel stateRef renderList fA = do
@@ -141,7 +147,7 @@ animateParallel stateRef renderList fA = do
   case mode of
     NoEvent -> animateParallel stateRef [] fA
     _ -> do
-      mapM_ (\(render, (nextPoint:xs)) -> render nextPoint) renderList
+      mapM_ (\(render, (nextPoint:_)) -> render nextPoint) renderList
       setTimer (Once 10) (animateParallel stateRef tailPoints fA)
       return ()
     where 
@@ -181,22 +187,20 @@ event (FullText "" "") stateRef = do
   writeIORef stateRef (NoEvent, m, world, imgs)
 event (FullText h s) stateRef = do
   (_, (m, p, render), world, imgs) <- readIORef stateRef
+  let animation1 = AnimateParallel $ AnimationInfo [(renderStateOnTop fullText, interPoints 1000 p1 p2)]
+      (do
+         (_, m', world', imgs') <- readIORef stateRef
+         writeIORef stateRef (Locked, m', world', imgs'))
+  let animation2 = AnimateSerial $ AnimationInfo [(fakePointRender p render fullBlack, fadeIn)]
+    (do
+       (_, m'', world'', imgs'') <- readIORef stateRef
+       writeIORef stateRef (NoEvent, m'', world'', imgs''))
+
   writeIORef stateRef (FullText "" "", (m, p, render),
                        world, imgs)
   renderStateOnTop fullText (0, 0)
-  setTimer (Once 2000) $ animateParallel stateRef
-    [(renderStateOnTop fullText, interPoints 1000 p1 p2)]
-    (do
-       (_, m', world', imgs') <- readIORef stateRef
-       writeIORef stateRef (Locked, m', world', imgs')
-       animateSerial stateRef [((\(f, _) -> do
-                                render p
-                                renderStateOnTop (fullBlack f) (0, 0)),
-                               fadeIn)]
-                                       (do
-       (_, m'', world'', imgs'') <- readIORef stateRef
-       writeIORef stateRef (NoEvent, m'', world'', imgs'')))
-  return ()             
+  setTimer (Once 2000) $
+  event (EventItemList [animation1, animation2]) stateRef
     where
       (p1, p2, fullText) = drawFullText h sDraw
       sDraw = map fst sParsed
@@ -248,6 +252,11 @@ event (Fight e1 (player1, player2) (win, lose)) stateRef = do
                                   (EventItemList [win, teleport],
                                    EventItemList [lose, teleport])])
         stateRef
+
+event (AnimateParallel (AnimationInfo renderList finalAction)) stateRef =
+                        animateParallel stateRef renderList finalAction
+event (AnimateSerial (AnimationInfo renderList finalAction)) stateRef =
+                        animateSerial stateRef renderList finalAction
 
 event (EventItemList []) _ = return ()
 event (EventItemList (EventItemList l:xs)) stateRef = 
