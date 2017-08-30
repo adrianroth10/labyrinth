@@ -61,8 +61,8 @@ updatePoint (x, y) (xS, yS)
 -------------------------Animation------------------------------------
 fades :: Double
 fades = 10
-fadeOut, fadeIn :: [Double]
-fadeOut = map (/fades) [0..fades]
+fadeOut, fadeIn :: [Point]
+fadeOut = map (\f -> (f/fades, 0)) [0..fades]
 fadeIn = tail $ reverse fadeOut
 
 interPoints :: Double -> Point -> Point -> [Point]
@@ -130,37 +130,36 @@ fight world (player1, player2) hp mousePos end
 
 
 -----------------------------------------------------------------------
----------------------------------Impure-------------------------------
+---------------------------------Impure--------------------------------
 -----------------------------------------------------------------------
 
-animateMove :: IORef State -> (Point -> IO ()) ->
-               [Point] -> IO () -> IO ()
-animateMove _ _ [] finalAction = finalAction
-animateMove stateRef renderState' (nextPoint:xs) fA = do
+animateParallel :: IORef State -> [((Point -> IO ()), [Point])] ->
+                   IO () -> IO ()
+animateParallel _ [] finalAction = finalAction
+animateParallel stateRef renderList fA = do
   (mode, _, _, _) <- readIORef stateRef
   case mode of
-    NoEvent -> animateMove stateRef renderState' [] fA
+    NoEvent -> animateParallel stateRef [] fA
     _ -> do
-      renderState' nextPoint
-      setTimer (Once 10) (animateMove stateRef renderState' xs fA)
+      mapM_ (\(render, (nextPoint:xs)) -> render nextPoint) renderList
+      setTimer (Once 10) (animateParallel stateRef tailPoints fA)
       return ()
+    where 
+      tailPoints' = map (\(render, pointList) ->
+                         (render, tail pointList)) renderList
+      tailPoints = filter (\(_, l) -> not (null l)) tailPoints'
 
-animateFades :: IORef State -> (Double -> Picture ()) ->
-                [(IO (), [Double])] ->
+animateSerial :: IORef State -> [(Point -> IO (), [Point])] ->
                 IO () -> IO ()
-animateFades _ _ [] finalAction = finalAction
-animateFades stateRef fader ((_, []):xRS) fA =
-                                     animateFades stateRef fader xRS fA
-animateFades stateRef fader ((renderState', (fadeLevel:xFL)):xRS) fA = do
+animateSerial _ [] finalAction = finalAction
+animateSerial stateRef ((_, []):xRS) fA = animateSerial stateRef xRS fA
+animateSerial stateRef ((render, (point:xs)):xRS) fA = do
   (mode, _, _, _) <- readIORef stateRef
   case mode of
-    NoEvent -> animateFades stateRef fader [] fA
+    NoEvent -> animateSerial stateRef [] fA
     _ -> do 
-      renderState'
-      renderStateOnTop (fader fadeLevel) (0, 0)
-      setTimer (Once 20) (animateFades stateRef fader
-                                       ((renderState', xFL):xRS)
-                                       fA)
+      render point
+      setTimer (Once 20) (animateSerial stateRef ((render, xs):xRS) fA)
       return ()
 
 -------------------------------Events----------------------------------
@@ -185,13 +184,15 @@ event (FullText h s) stateRef = do
   writeIORef stateRef (FullText "" "", (m, p, render),
                        world, imgs)
   renderStateOnTop fullText (0, 0)
-  setTimer (Once 2000) $ animateMove stateRef
-    (renderStateOnTop fullText)
-    (interPoints 1000 p1 p2)
+  setTimer (Once 2000) $ animateParallel stateRef
+    [(renderStateOnTop fullText, interPoints 1000 p1 p2)]
     (do
        (_, m', world', imgs') <- readIORef stateRef
        writeIORef stateRef (Locked, m', world', imgs')
-       animateFades stateRef fullBlack [(render p, fadeIn)]
+       animateSerial stateRef [((\(f, _) -> do
+                                render p
+                                renderStateOnTop (fullBlack f) (0, 0)),
+                               fadeIn)]
                                        (do
        (_, m'', world'', imgs'') <- readIORef stateRef
        writeIORef stateRef (NoEvent, m'', world'', imgs'')))
@@ -213,9 +214,14 @@ event (Teleport m p') stateRef = do
   writeIORef stateRef (Locked,
                        (newMap, p', renderState pImg newPicture),
                        world, imgs)
-  animateFades stateRef fullBlack
-               [(render p, fadeOut),
-                (renderState pImg newPicture p', fadeIn)]
+  animateSerial stateRef [((\(f, _) -> do
+                            render p
+                            renderStateOnTop (fullBlack f) (0, 0)),
+                          fadeOut),
+                          ((\(f, _) -> do
+                            renderState pImg newPicture p'
+                            renderStateOnTop (fullBlack f) (0, 0)),
+                          fadeIn)]
                (do
     (_, m', world', imgs') <- readIORef stateRef
     writeIORef stateRef (NoEvent, m', world', imgs'))
@@ -275,10 +281,9 @@ playerMove stateRef mousePos = do
   case validPoint m (updatePoint mousePos p) of
     Just p' -> do 
       writeIORef stateRef (Locked, (m, p', render), world, imgs)
-      animateMove stateRef
-                  (render)
-                  (interPoints 5 p p')
-                  (do
+      animateParallel stateRef
+                      [(render, interPoints 5 p p')]
+                      (do
         (_, m', world', imgs') <- readIORef stateRef
         writeIORef stateRef (NoEvent, m', world', imgs')
         eventPoint stateRef)
