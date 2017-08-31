@@ -32,7 +32,7 @@ data EventItem = NoEvent |
                  AnimateParallel AnimationInfo |
                  AnimateSerial AnimationInfo |
                  EventItemList [EventItem] deriving (Eq, Show)
-data AnimationInfo = AnimationInfo [(Point -> IO (), [Point])] (IO ())
+data AnimationInfo = AnimationInfo [(Point -> IO (), [Point])] EventItem
 instance Show AnimationInfo where
   show = const "" 
 instance Eq AnimationInfo where
