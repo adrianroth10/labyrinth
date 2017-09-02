@@ -142,7 +142,7 @@ fight world (player1, player2) hp mousePos end
     (attack2, damage2, e2) = extract moves2
                                      (pseudoRandom (length moves2)
                                                    mousePos)
-    (hp1, hp2) = hp <+> (-damage2, -damage1)
+    (hp1, hp2) = hp |+| (-damage2, -damage1)
 -----------------------------------------------------------------------
 
 

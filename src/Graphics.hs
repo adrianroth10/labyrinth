@@ -2,7 +2,7 @@ module Graphics (Haste.Graphics.Canvas.Point,
                  Haste.Graphics.Canvas.Picture,
                  Haste.Graphics.Canvas.Bitmap,
                  Haste.Graphics.Canvas.translate,
-                 (<+>),
+                 (|+|),
                  Imgs,
                  width,
                  height,
@@ -25,14 +25,13 @@ import World
 import Haste.Graphics.Canvas
 
 import Data.Maybe
-import Data.List
 
 type Imgs = [(Tile, Bitmap)]
 
 --constants
 width, height, block :: Double
-width = 712
-height = 512
+width = 800
+height = 500
 block = 50
 
 --colors
@@ -43,8 +42,11 @@ red = color $ RGB 255 0 0
 yellow = color $ RGB 255 255 0
 blue = color $ RGBA 0 0 255 0.5
 
-(<+>) :: Num a => (a, a) -> (a, a) -> (a, a)
-(<+>) (x1, y1) (x2, y2) = (x1 + x2, y1 + y2)
+(|+|) :: Num a => (a, a) -> (a, a) -> (a, a)
+(|+|) (x1, y1) (x2, y2) = (x1 + x2, y1 + y2)
+
+(|*|) :: Num a => (a, a) -> (a, a) -> (a, a)
+(|*|) (x1, y1) (x2, y2) = (x1 * x2, y1 * y2)
 
 drawShape :: (Picture () -> Picture ()) -> Shape () -> Picture ()
 drawShape col = col . fill
@@ -204,6 +206,26 @@ localStat2Point = (x1', 0)
 globalPlayer1Point = (0, height / 3)
 globalPlayer2Point = (0, 0)
 
+intToDouble :: Int -> Double
+intToDouble = fromIntegral
+basePoint, charSize :: Point 
+basePoint = (50, 50)
+charSize = (4, 4)
+globalMovesPoint1, globalMovesPoint2 :: Int -> Point
+globalMovesPoint3, globalMovesPoint4 :: Int -> Point
+globalMovesPoint1 l' = basePoint |+| ((-l, l) |*| charSize)
+  where l = intToDouble l'
+globalMovesPoint2 l' = (width, 0) |+| ((-1, 1) |*| basePoint) |+|
+                       ((-l, -l) |*| charSize)
+  where l = intToDouble l'
+globalMovesPoint3 l' = (0, height) |+| ((1, -1) |*| basePoint) |+|
+                       ((-l, -l) |*| charSize)
+  where l = intToDouble l'
+globalMovesPoint4 l' = (width, height) |+|
+                      ((-1, -1) |*| basePoint) |+|
+                      ((-l, l) |*| charSize)
+  where l = intToDouble l'
+
 localPlayer1Rect, localPlayer2Rect :: Rect
 localPlayer1Rect = Rect x1' 0 wh wh
 localPlayer2Rect = Rect x2' 0 wh wh
@@ -212,7 +234,8 @@ doubleToInteger :: Double -> Integer
 doubleToInteger = floor
 drawHp :: Double -> Picture ()
 drawHp hp = do
-  font "20px italic Monospace" $ text localHpPoint $ show $ doubleToInteger hp
+  font "20px italic Monospace" $ text localHpPoint $
+                                            show $ doubleToInteger hp
 
 drawPlayerName :: TileItem -> Picture ()
 drawPlayerName (PlayerItem _ name _) = do
@@ -238,20 +261,33 @@ mergePlayerPictures (pImg1, pImg2) = do
 updatePlayers :: Picture () -> Vector -> Picture ()
 updatePlayers base (hp1, hp2) = do
   base
-  translate (globalPlayer1Point <+> localStat1Point <+> localHpPoint) $
+  translate (globalPlayer1Point |+| localStat1Point |+| localHpPoint) $
             drawHp hp1
-  translate (globalPlayer2Point <+> localStat2Point <+> localHpPoint) $
+  translate (globalPlayer2Point |+| localStat2Point |+| localHpPoint) $
             drawHp hp2
 
-moveNames :: Moves -> (String, String)
-moveNames moves = (foldlS (take 2 moves), foldlS (drop 2 moves))
-  where foldlS = foldl1 (\s m -> s ++ m) . intersperse "         " .
-                 map (\(m, _, _) -> m)
+moveNames :: Moves -> [String]
+moveNames = map (\(name, _, _) -> name)
+
+textHelper20px :: Point -> String -> Picture ()
+textHelper20px = ((.) (font "20px italic Monospace")) . text 
 
 drawMoves :: Moves -> Picture ()
 drawMoves moves = do
-  drawTextBox
-  drawText $ moveNames moves
+  mapM_ (color (RGBA 0 0 0 0.05) . fill . circle (0, 0)) [115..125]
+  mapM_ (color (RGBA 0 0 0 0.05) . fill . circle (width, 0)) [115..125]
+  mapM_ (color (RGBA 0 0 0 0.05) . fill . circle (width, height)) [115..125]
+  mapM_ (color (RGBA 0 0 0 0.05) . fill . circle (0, height)) [115..125]
+  translate (globalMovesPoint1 (length move1)) $ rotate (-pi / 4) $ textHelper20px (0, 0) move1
+  translate (globalMovesPoint2 (length move2)) $ rotate (pi / 4) $ textHelper20px (0, 0) move2
+  translate (globalMovesPoint3 (length move3)) $ rotate (pi / 4) $ textHelper20px (0, 0) move3
+  translate (globalMovesPoint4 (length move4)) $ rotate (-pi / 4) $ textHelper20px (0, 0) move4
+  where
+    mNames = moveNames moves  
+    move1 = head mNames 
+    move2 = head $ drop 1 mNames
+    move3 = head $ drop 2 mNames
+    move4 = head $ drop 3 mNames
 -----------------------------------------------------------------------
 
 ---------------------------------Impure--------------------------------
