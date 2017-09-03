@@ -4,8 +4,8 @@ module World (World,
               MapContent',
               Moves,
               EventItem (NoEvent, Locked, Text, FullText,
-                         HTMLText, Teleport, Fight, AnimateParallel,
-                         AnimateSerial, EventItemList),
+                         HTMLText, Teleport, Fight, Animation,
+                         ChangePoint, EventItemList),
               AnimationInfo (AnimationInfo),
               eqTile,
               parseWorld) where
@@ -29,10 +29,12 @@ data EventItem = NoEvent |
                  HTMLText String |
                  Teleport Tile Point |
                  Fight EventItem (Tile, Tile) (EventItem, EventItem) |
-                 AnimateParallel AnimationInfo |
-                 AnimateSerial AnimationInfo |
+                 Animation AnimationInfo |
+                 ChangePoint Point  |
                  EventItemList [EventItem] deriving (Eq, Show)
-data AnimationInfo = AnimationInfo [(Point -> IO (), [Point])] EventItem
+
+data AnimationInfo = AnimationInfo [(Point -> IO (), [Point])]
+                                   EventItem
 instance Show AnimationInfo where
   show = const "" 
 instance Eq AnimationInfo where

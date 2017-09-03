@@ -77,10 +77,8 @@ faderHelper point render fader (f, _) = do
   render point
   renderStateOnTop (fader f) (0, 0)
 
-apHelper :: [(Point -> IO (), [Point])] -> EventItem -> EventItem
-apHelper = ((.) AnimateParallel) . AnimationInfo
-asHelper :: [(Point -> IO (), [Point])] -> EventItem -> EventItem
-asHelper = ((.) AnimateSerial) .  AnimationInfo
+animateHelper :: [(Point -> IO (), [Point])] -> EventItem -> EventItem
+animateHelper = ((.) Animation) . AnimationInfo
 
 interPoints :: Double -> Point -> Point -> [Point]
 interPoints l (x1, y1) (x2, y2) = (take (floor l) $ zip
@@ -94,7 +92,7 @@ interPoints l (x1, y1) (x2, y2) = (take (floor l) $ zip
 
 ------------------------------Fight------------------------------------
 drawPlayers' :: (Tile, Tile) -> World -> Imgs ->
-                (Picture (), Picture ())
+                ((Point, Picture ()), (Point, Picture ()))
 drawPlayers' (player1, player2) world imgs =
                   drawPlayers (pBit1, pBit2) (playerItem1, playerItem2)
   where
@@ -105,6 +103,11 @@ drawPlayers' (player1, player2) world imgs =
 
 startHp :: Point
 startHp = (100, 100)
+
+psychadelic :: [Point]
+psychadelic = foldl (\acc p -> acc ++ replicate 5 p) [] $
+                    intersperse (0, 0) $ take 5 fadeIn ++
+                                         drop 5 fadeOut
 
 getIndex :: (Int, Int) -> Int
 getIndex (x, y)
@@ -126,15 +129,13 @@ extract (_:xs) i = extract xs (i - 1)
 pseudoRandom :: Int -> (Int, Int) -> Int
 pseudoRandom h (x, y) = mod (x + y) h
 
-fight :: World -> (Tile, Tile) -> Point -> (Int, Int) ->
-         (EventItem, EventItem) -> (Point, EventItem)
-fight world (player1, player2) hp mousePos end
-  | hp2 <= 0 = ((hp1, 0), fst end)
-  | hp1 <= 0 = ((0, hp2), snd end)
-  | otherwise = ((hp1, hp2),
-                EventItemList [Text (name1 ++ " used " ++ attack1), e1,
-                               Text (name2 ++ " used " ++ attack2), e2,
-                               Fight Locked (player1, player2) end])
+fight :: World -> (Tile, Tile) -> Point -> (Point -> IO ()) ->
+         (Int, Int) -> (EventItem, EventItem) -> EventItem
+fight world (player1, player2) hp render mousePos end
+  | hp2 <= 0 = EventItemList [animation1, fst end]
+  | hp1 <= 0 = EventItemList [animation1, animation2, snd end]
+  | otherwise = EventItemList [animation1, animation2,
+                               Fight Locked (player1, player2) end]
   where
     Just (PlayerItem _ name1 moves1) = lookup player1 world
     Just (PlayerItem _ name2 moves2) = lookup player2 world
@@ -142,7 +143,22 @@ fight world (player1, player2) hp mousePos end
     (attack2, damage2, e2) = extract moves2
                                      (pseudoRandom (length moves2)
                                                    mousePos)
-    (hp1, hp2) = hp |+| (-damage2, -damage1)
+    newDamage1 = min damage1 (snd hp)
+    newDamage2 = min damage2 (fst hp)
+    hpI = hp |+| (0, -newDamage1)
+    (hp1, hp2) = hpI |+| (-newDamage2, 0)
+    
+    animation1 = EventItemList [Text (name1 ++ " used " ++ attack1),
+                   e1,
+                   animateHelper [(render,
+                       interPoints newDamage1 hp hpI)] Locked,
+                   ChangePoint hpI]
+    animation2 = EventItemList [Text (name2 ++ " used " ++ attack2),
+                   e2,
+                   animateHelper [(render,
+                       interPoints newDamage2 hpI (hp1, hp2))] Locked,
+                   ChangePoint (hp1, hp2)]
+
 -----------------------------------------------------------------------
 
 
@@ -150,37 +166,26 @@ fight world (player1, player2) hp mousePos end
 ---------------------------------Impure--------------------------------
 -----------------------------------------------------------------------
 
-animateParallel :: IORef State -> [(Point -> IO (), [Point])] -> IO ()
-animateParallel stateRef [] = do
+animation :: IORef State -> [(Point -> IO (), [Point])] -> IO ()
+animation stateRef [] = do
   (_, m, world, imgs) <- readIORef stateRef
   writeIORef stateRef (NoEvent, m, world, imgs)
-animateParallel stateRef renderList = do
+animation stateRef renderList = do
   (mode, _, _, _) <- readIORef stateRef
   case mode of
-    NoEvent -> animateParallel stateRef []
+    NoEvent -> do 
+      mapM_ (\(render, (nextPoint:_)) -> render nextPoint) lastPoints
+      animation stateRef []
     _ -> do
       mapM_ (\(render, (nextPoint:_)) -> render nextPoint) renderList
-      setTimer (Once 10) (animateParallel stateRef tailPoints)
+      setTimer (Once 10) (animation stateRef tailPoints)
       return ()
     where 
       tailPoints' = map (\(render, pointList) ->
                          (render, tail pointList)) renderList
       tailPoints = filter (\(_, l) -> not (null l)) tailPoints'
-
-animateSerial :: IORef State -> [(Point -> IO (), [Point])] -> IO ()
-animateSerial stateRef [] = do
-  (_, m, world, imgs) <- readIORef stateRef
-  writeIORef stateRef (NoEvent, m, world, imgs)
-animateSerial stateRef ((_, []):xRS) = animateSerial stateRef xRS
-animateSerial stateRef ((render, (point:xs)):xRS) = do
-  (mode, _, _, _) <- readIORef stateRef
-  case mode of
-    NoEvent -> animateSerial stateRef []
-    _ -> do 
-      render point
-      setTimer (Once 20) (animateSerial stateRef ((render, xs):xRS))
-      return ()
-
+      lastPoints = map (\(render, pointList) ->
+                        (render, [last pointList])) renderList
 -------------------------------Events----------------------------------
 event :: IORef State -> EventItem ->  IO ()
 event stateRef (Text "") = do
@@ -200,16 +205,17 @@ event stateRef (FullText "" "") = do
   writeIORef stateRef (NoEvent, m, world, imgs)
 event stateRef (FullText h s) = do
   (_, (m, p, render), world, imgs) <- readIORef stateRef
-  let animation1 = apHelper [(renderStateOnTop fullText,
-                              interPoints 1000 p1 p2)]
-                            (FullText "" "")
-  let animation2 = asHelper [(faderHelper p render fullBlack, fadeIn)]
-                            (FullText "" "")
+  let animation1 = animateHelper [(renderStateOnTop fullText,
+                                   interPoints 1000 p1 p2)]
+                                 (FullText "" "")
+  let animation2 = animateHelper [(faderHelper p render fullBlack,
+                                   fadeIn)]
+                                 (FullText "" "")
   writeIORef stateRef (Locked, (m, p, render), world, imgs)
   renderStateOnTop fullText (0, 0)
   setTimer (Once 1000) $ do
     writeIORef stateRef (NoEvent, (m, p, render), world, imgs)
-    event stateRef (EventItemList [animation1, animation2]) 
+    event stateRef $ EventItemList [animation1, animation2]
   return ()
     where
       (p1, p2, fullText) = drawFullText h sDraw
@@ -225,48 +231,50 @@ event stateRef (Teleport m p') = do
   let Just (MapContent newMap) = lookup m world
   let newPicture = drawMap imgs newMap
   let pImg = lookup (Player 1) imgs
-  writeIORef stateRef (Locked,
+  writeIORef stateRef (NoEvent,
                        (newMap, p', renderState pImg newPicture),
                        world, imgs)
-  animateSerial stateRef [((\(f, _) -> do
-                            render p
-                            renderStateOnTop (fullBlack f) (0, 0)),
-                          fadeOut),
-                          ((\(f, _) -> do
-                            renderState pImg newPicture p'
-                            renderStateOnTop (fullBlack f) (0, 0)),
-                          fadeIn)]
+  event stateRef $ EventItemList
+    [animateHelper [(faderHelper p render fullBlack, fadeOut)] Locked,
+     animateHelper [(faderHelper p' (renderState pImg newPicture)
+                                 fullBlack, fadeIn)] Locked]
 
 event stateRef (Fight Locked players end) = do
   (_, m, world, imgs) <- readIORef stateRef
   writeIORef stateRef (Fight Locked players end,
                        m, world, imgs)
 event stateRef (Fight e1 (player1, player2) (win, lose)) = do
-  (_, (m, p, _), world, imgs) <- readIORef stateRef
+  (_, (m, p, lastRender), world, imgs) <- readIORef stateRef
   let Just mapTile = flippedLookup (MapContent m) world
   let teleport = Teleport mapTile p
 
   let Just (PlayerItem _ _ moves) = lookup player1 world
-  let (pImg1, pImg2) = drawPlayers' (player1, player2) world imgs
-  fightImage <- return $ do
-    mergePlayerPictures (pImg1, pImg2)
-    drawMoves moves
+  let ((p1, pImg1), (p2, pImg2)) = drawPlayers' (player1, player2)
+                                                world imgs
+  let fightImage = mergePlayerPictures (pImg1, pImg2) moves
   let render = flip renderStateOnTop (0, 0) . updatePlayers fightImage
 
   render startHp
   writeIORef stateRef (NoEvent, (m, startHp, render), world, imgs)
-  event stateRef (EventItemList [e1, Fight Locked (player1, player2)
-                                     (EventItemList [win, teleport],
-                                      EventItemList [lose, teleport])])
+  event stateRef $ EventItemList
+    [animateHelper [(faderHelper p lastRender fullWhite,
+                     psychadelic)] Locked,
+     animateHelper [(renderStateOnTop pImg1,
+                     interPoints 200 (p1 |+| (width, 0)) p1),
+                    (renderStateOnTop pImg2,
+                     interPoints 200 (p2 |+| (-width, 0)) p2)] Locked,
+     e1, Fight Locked (player1, player2)
+               (EventItemList [win, teleport],
+                EventItemList [lose, teleport])]
 
-event stateRef (AnimateParallel (AnimationInfo renderList event')) = do
+event stateRef (Animation (AnimationInfo renderList event')) = do
   (_, m, world, imgs) <- readIORef stateRef
   writeIORef stateRef (event', m, world, imgs)
-  animateParallel stateRef renderList
-event stateRef (AnimateSerial (AnimationInfo renderList event')) = do
-  (_, m, world, imgs) <- readIORef stateRef
-  writeIORef stateRef (event', m, world, imgs)
-  animateSerial stateRef renderList
+  animation stateRef renderList
+
+event stateRef (ChangePoint point) = do
+  (event', (m, _, render), world, imgs) <- readIORef stateRef
+  writeIORef stateRef (event', (m, point, render), world, imgs)
 
 event _ (EventItemList []) = return ()
 event stateRef (EventItemList (EventItemList l:xs)) = 
@@ -276,10 +284,10 @@ event stateRef (EventItemList (nextEvent:xs)) = do
   case event' of
     NoEvent -> do 
       event stateRef nextEvent 
-      event stateRef (EventItemList xs) 
+      event stateRef $ EventItemList xs
     _ -> do
-      setTimer (Once 100) $ event stateRef
-                                  (EventItemList (nextEvent:xs)) 
+      setTimer (Once 100) $ event stateRef $
+                                          EventItemList (nextEvent:xs)
       return ()
 
 event _ _ = return ()
@@ -294,19 +302,18 @@ playerMove stateRef mousePos = do
   case validPoint m (updatePoint mousePos p) of
     Just p' -> do 
       writeIORef stateRef (NoEvent, (m, p', render), world, imgs)
-      event stateRef
-            (EventItemList [apHelper [(render, interPoints 5 p p')]
+      event stateRef $
+            EventItemList [animateHelper [(render, interPoints 5 p p')]
                                      Locked,
-                            eventPoint world m p'])
+                           eventPoint world m p']
     Nothing -> return ()
 
 fightMove :: IORef State -> (Int, Int) -> IO ()
 fightMove stateRef mousePos = do
   (Fight _ players end, (m, hp, render), world, imgs) <-
                                                     readIORef stateRef
-  let (newHp, event') = fight world players hp mousePos end
-  render newHp
-  writeIORef stateRef (NoEvent, (m, newHp, render), world, imgs)
+  let event' = fight world players hp render mousePos end
+  writeIORef stateRef (NoEvent, (m, hp, render), world, imgs)
   event stateRef event'
 
 onClick :: IORef State -> MouseData -> IO ()
