@@ -99,7 +99,7 @@ drawPlayers' (player1, player2) world imgs =
      Just playerItem1 = lookup player1 world
      Just playerItem2 = lookup player2 world
      Just pBit1 = lookup player1 imgs
-     Just pBit2 = lookup player1 imgs
+     Just pBit2 = lookup player2 imgs
 
 startHp :: Point
 startHp = (100, 100)
