@@ -111,7 +111,7 @@ parseDrawText' [] ((w:ws):xs) = parseDrawText' w (ws:xs)
 parseDrawText' ps ((w:ws):xs) 
   | length ps + length w < maxLength = parseDrawText' (ps ++ " " ++ w) (ws:xs)
   | otherwise = (ps, unlines (map unwords ((w:ws):xs)))
-    where maxLength = 45
+    where maxLength = 40
 
 parseDrawText :: String -> (String, String)
 parseDrawText = parseDrawText' "" . map words . lines
