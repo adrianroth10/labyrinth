@@ -216,7 +216,7 @@ globalPlayer2Point = (0, height - 430)
 intToDouble :: Int -> Double
 intToDouble = fromIntegral
 basePoint, charSize :: Point 
-basePoint = (50, 50)
+basePoint = (90, 90)
 charSize = (4, 4)
 globalMovesPoint1, globalMovesPoint2 :: Int -> Point
 globalMovesPoint3, globalMovesPoint4 :: Int -> Point
@@ -279,12 +279,21 @@ updatePlayers base (hp1, hp2) = do
   translate (globalPlayer2Point |+| localStat2Point |+| localHpPoint) $
             drawHp hp2
 
+tiltedSquare :: Point -> Double -> Picture ()
+tiltedSquare p side = translate p $ rotate (pi / 4) $ fill $ rect p1 p2
+  where
+    p1 = (-side / 2, -side / 2)
+    p2 = (side / 2,side / 2)
+
+moveShape :: [Double]
+moveShape = [180..190]
+
 drawMoves :: Moves -> Picture ()
 drawMoves moves = do
-  mapM_ (weakGray . fill . circle (0, 0)) [115..125]
-  mapM_ (weakGray . fill . circle (width, 0)) [115..125]
-  mapM_ (weakGray . fill . circle (width, height)) [115..125]
-  mapM_ (weakGray . fill . circle (0, height)) [115..125]
+  mapM_ (weakGray . tiltedSquare (0, 0)) moveShape
+  mapM_ (weakGray . tiltedSquare (width, 0)) moveShape
+  mapM_ (weakGray . tiltedSquare (width, height)) moveShape
+  mapM_ (weakGray . tiltedSquare (0, height)) moveShape
   translate (globalMovesPoint1 (length move1)) $
                         rotate (-pi / 4) $ textHelper20px (0, 0) move1
   translate (globalMovesPoint2 (length move2)) $

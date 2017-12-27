@@ -151,12 +151,12 @@ fight world (player1, player2) hp render mousePos end
     animation1 = EventItemList [Text (name1 ++ " used " ++ attack1),
                    e1,
                    animateHelper [(render,
-                       interPoints newDamage1 hp hpI)] Locked,
+                       interPoints (abs newDamage1) hp hpI)] Locked,
                    ChangePoint hpI]
     animation2 = EventItemList [Text (name2 ++ " used " ++ attack2),
                    e2,
                    animateHelper [(render,
-                       interPoints newDamage2 hpI (hp1, hp2))] Locked,
+                       interPoints (abs newDamage2) hpI (hp1, hp2))] Locked,
                    ChangePoint (hp1, hp2)]
 
 -----------------------------------------------------------------------

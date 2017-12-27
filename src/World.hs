@@ -114,7 +114,7 @@ parseEvents = parseEvents' >-> formatEvents
 
 ---------------------------------Moves---------------------------------
 parseMove :: Parser (String, Double, EventItem)
-parseMove = accept "Move" -# accept "Name" -# var #-
+parseMove = accept "Move" -# accept "Name" -# line #-
             accept "Damage" # number #-
             accept "Events" # parseEvents >->
             (\((name, damage), event) ->
