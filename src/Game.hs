@@ -195,10 +195,13 @@ event stateRef (Text "") = do
 event stateRef (Text s) = do
   (_, m, world, imgs) <- readIORef stateRef
   renderStateOnTop (drawText (s1, s2)) (0, 0)
-  writeIORef stateRef (Text rest1, m, world, imgs)
+  writeIORef stateRef (Text rest, m, world, imgs)
     where
       (s1, rest1) = parseDrawText s
-      (s2, _) = parseDrawText rest1
+      (s2, rest2) = parseDrawText rest1
+      rest = case rest2 of
+               "" -> ""
+               _  -> rest1
 
 event stateRef (FullText "" "") = do
   (_, m, world, imgs) <- readIORef stateRef
