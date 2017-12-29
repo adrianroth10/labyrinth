@@ -102,8 +102,7 @@ parseEvent = accept "Text" -# parseLines >->
 
 formatEvents :: [EventItem] -> EventItem
 formatEvents [] = NoEvent
-formatEvents [ei] = ei
-formatEvents xei = EventItemList xei
+formatEvents eis = EventItemList eis
 
 parseEvents' :: Parser [EventItem]
 parseEvents' = accept end -# Parser.return [] !
