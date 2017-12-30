@@ -174,7 +174,7 @@ animation stateRef [] = do
 animation stateRef renderList = do
   (mode, _, _, _) <- readIORef stateRef
   case mode of
-    EventItemList (NoEvent : eis) -> do 
+    EventItemList (NoEvent : _) -> do 
       mapM_ (\(render, (nextPoint:_)) -> render nextPoint) lastPoints
       animation stateRef []
     _ -> do
@@ -288,7 +288,7 @@ event stateRef (EventItemList (ChangePoint point : eis)) = do
   event stateRef $ EventItemList eis
 
 event stateRef (EventItemList (EventItemList l:xs)) = 
-                               event stateRef (EventItemList (l ++ xs))
+                               event stateRef $ EventItemList $ l ++ xs
 
 event _ _ = return ()
 
@@ -321,7 +321,7 @@ onClick stateRef (MouseData mousePos _ _) = do
   (event', _, _, _) <- readIORef stateRef 
   case event' of
     NoEvent -> playerMove stateRef mousePos
-    EventItemList (Fight _ _ _ : eis) -> fightMove stateRef mousePos
+    EventItemList (Fight _ _ _ : _) -> fightMove stateRef mousePos
     _ -> event stateRef event'
 
 play :: Maybe String -> IO ()
