@@ -60,7 +60,7 @@ Player 1 IMG world/Player.png
 	END
 END
 
-Player 2 IMG world/Player2.png
+Player 2 IMG world/Player.png
 	Name Enemy
 	Moves
 		Move
