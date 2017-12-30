@@ -80,6 +80,9 @@ faderHelper point render fader (f, _) = do
 animateHelper :: [(Point -> IO (), [Point])] -> EventItem -> EventItem
 animateHelper = ((.) Animation) . AnimationInfo
 
+fTInterPoints :: [String] -> Double
+fTInterPoints = fromIntegral . (100*) . length
+
 interPoints :: Double -> Point -> Point -> [Point]
 interPoints l (x1, y1) (x2, y2) = (take (floor l) $ zip
                                                 (iterate (+xdiff) x1)
@@ -213,14 +216,13 @@ event stateRef (EventItemList (FullText "" "" : eis)) = do
   (_, m, world, imgs) <- readIORef stateRef
   writeIORef stateRef (EventItemList (NoEvent : eis), m, world, imgs)
 event stateRef (EventItemList (FullText h s : eis)) = do
-  (_, (m, p, render), world, imgs) <- readIORef stateRef
+  (_, (_, p, render), _, _) <- readIORef stateRef
   let animation1 = animateHelper [(renderStateOnTop fullText,
-                                   interPoints 1000 p1 p2)]
+                                   interPoints (fTInterPoints sDraw) p1 p2)]
                                  (FullText "" "")
   let animation2 = animateHelper [(faderHelper p render fullBlack,
                                    fadeIn)]
                                  (FullText "" "")
-  writeIORef stateRef (Locked, (m, p, render), world, imgs)
   renderStateOnTop fullText (0, 0)
   setTimer (Once 2000) $ 
     event stateRef $ EventItemList $ [animation1, animation2] ++ eis
