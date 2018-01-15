@@ -224,7 +224,7 @@ event stateRef (EventItemList (FullText h s : eis)) = do
                                    fadeIn)]
                                  (FullText "" "")
   renderStateOnTop fullText (0, 0)
-  setTimer (Once 2000) $ 
+  setTimer (Once 3000) $ 
     event stateRef $ EventItemList $ [animation1, animation2] ++ eis
   return ()
     where
