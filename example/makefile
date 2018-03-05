@@ -7,7 +7,7 @@ labyrinth.js: Labyrinth.hs Game.hs Graphics.hs World.hs Parser.hs
 	hastec -Wall -fno-warn-unused-do-bind -o $@ $^
 
 run: labyrinth.js
-	gnome-open index.html
+	xdg-open index.html
 
 clean:
 	rm -f *.hi *.o *.jsmod *.js
