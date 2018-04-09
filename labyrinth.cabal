@@ -1,0 +1,47 @@
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: bc42d52c2b12a34ebbcfe91b92bf4f5ccb1b8baa21993d5f222e5f3e39d20278
+
+name:           labyrinth
+version:        0.1.0.0
+description:    Please see the README on Github at <https://github.com/adrianroth10/labyrinth#readme>
+homepage:       https://github.com/adrianroth10/labyrinth#readme
+bug-reports:    https://github.com/adrianroth10/labyrinth/issues
+author:         Adrian Roth
+maintainer:     adrianroth10@gmail.com
+copyright:      2018 Adrian Roth 
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+
+extra-source-files:
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/adrianroth10/labyrinth
+
+library
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+  exposed-modules:
+      World
+      Parser
+  default-language: Haskell2010
+
+test-suite labyrinth-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , labyrinth
+    , HUnit
+  default-language: Haskell2010
