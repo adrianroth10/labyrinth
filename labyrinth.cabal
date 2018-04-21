@@ -29,6 +29,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , json
   exposed-modules:
       World
       Parser

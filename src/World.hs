@@ -1,19 +1,29 @@
-module World (World,
-              Tile (Free, Start, Wall, Event, Map, Player),
-              TileItem (MapContent, TileItem, PlayerItem),
-              MapContent',
-              Moves,
-              EventItem (NoEvent, Locked, Text, FullText,
-                         HTMLText, Teleport, Fight, Animation,
-                         ChangePoint, EventItemList),
-              AnimationInfo (AnimationInfo),
-              eqTile,
-              parseWorld) where
+{-# LANGUAGE OverloadedStrings #-}
+--module World (World,
+module Main where
+--              Tile (Free, Start, Wall, Event, Map, Player),
+--              TileItem (MapContent, TileItem, PlayerItem),
+--              MapContent',
+--              Moves,
+--              EventItem (NoEvent, Locked, Text, FullText,
+--                         HTMLText, Teleport, Fight, Animation,
+--                         ChangePoint, EventItemList),
+--              AnimationInfo (AnimationInfo),
+--              eqTile,
+--              parseWorld) where
 
-import Parser
+--import Parser
+import Haste
+
+import Haste.JSON
+import Haste.Ajax
+import Haste.Prim
+import Haste.DOM
+
 
 type Point = (Double, Double)
-type World = [(Tile, TileItem)]
+type World = [WorldItem]
+type WorldItem = (Tile, TileItem)
 data Tile = Start | Free Integer |
             Wall Integer | Event Integer |
             Map Integer | Player Integer deriving (Eq, Show)
@@ -40,10 +50,22 @@ instance Show AnimationInfo where
 instance Eq AnimationInfo where
   (==) _ _ = True
 
-end, img, emptyLine :: String
-end = "END"
-img = "IMG"
-emptyLine = "EMPTYLINE"
+
+
+main :: IO ()
+main = ajaxRequest GET "test/map.json" noParams play
+
+play :: Maybe String -> IO ()
+play (Just worldStr) =
+  case parseWorld worldStr of
+    Left str -> changeOutputHTML $ "World errors:</br>" ++ str
+    Right w -> changeOutputHTML $ show w
+play Nothing = alert "World file not loaded"
+
+changeOutputHTML :: String -> IO ()
+changeOutputHTML s = do
+  Just e <- elemById "output"
+  setProp e "innerHTML" s
 
 eqTile :: Tile -> Tile -> Bool
 eqTile Start Start = True
@@ -54,13 +76,13 @@ eqTile (Map _) (Map _) = True
 eqTile (Player _) (Player _) = True
 eqTile _ _ = False
 
-tile :: Integer -> Tile
+tile :: Integer -> Either String Tile
 tile n
-  | n == 0 = Start
-  | n >= 10 && n < 20 = Free (n - 9)
-  | n >= 20 && n < 30 = Wall (n - 19)
-  | n >= 30 = Event (n - 29)
-  | otherwise = error "Not a valid Tile"
+  | n == 0 = Right Start
+  | n >= 10 && n < 20 = Right (Free (n - 9))
+  | n >= 20 && n < 30 = Right (Wall (n - 19))
+  | n >= 30 = Right (Event (n - 29))
+  | otherwise = Left (show n ++ " is not a valid tile number")
 
 --prepend :: (a, [a]) -> [a]
 --prepend (x, xs) = x:xs
@@ -126,21 +148,21 @@ tile n
 --parseMoves = parseMoves' ? ((<=4) . length)
 -------------------------------------------------------------------------
 
------------------------------------Map---------------------------------
-validMap :: MapContent' -> Bool
-validMap (c, tiles)
-  | length tiles `mod` floor c /= 0 = False
-  | otherwise = True
-
-mapContent :: Parser [Integer]
-mapContent = accept end -# Parser.return [] !
-             (number # mapContent >-> prepend)
-parseMap :: Parser TileItem
-parseMap = (((number >-> fromInteger) # (mapContent >-> (map tile))) ?
-           validMap) >-> MapContent
------------------------------------------------------------------------
-
------------------------------------World-------------------------------
+-------------------------------------Map---------------------------------
+--validMap :: MapContent' -> Bool
+--validMap (c, tiles)
+--  | length tiles `mod` floor c /= 0 = False
+--  | otherwise = True
+--
+--mapContent :: Parser [Integer]
+--mapContent = accept end -# Parser.return [] !
+--             (number # mapContent >-> prepend)
+--parseMap :: Parser TileItem
+--parseMap = (((number >-> fromInteger) # (mapContent >-> (map tile))) ?
+--           validMap) >-> MapContent
+-------------------------------------------------------------------------
+--
+-------------------------------------World-------------------------------
 --parseWorldItem :: Parser (Tile, TileItem)
 --parseWorldItem = accept "Map" -# number # parseMap >->
 --                 (\(n, m) -> (Map n, m))
@@ -197,11 +219,59 @@ parseMap = (((number >-> fromInteger) # (mapContent >-> (map tile))) ?
 --  | oneStart worldItems = Just worldItems
 --  | otherwise = Nothing
 --formatWorld (Just (_, _)) = Nothing -- Garbage parsing error
+--
 
+tuple :: a -> b -> (a, b)
+tuple a b = (a, b)
 
-parseWorld' :: Result JSValue -> Maybe World
-parseWorld = []
+applicativeHelper :: String -> Either String (a -> b) ->
+                               Either String a ->
+                               Either String b
+applicativeHelper s (Left a) (Left b) = Left (a ++ s ++ b)
+applicativeHelper _ (Right _) (Left b) = Left b
+applicativeHelper _ (Left a) (Right _) = Left a
+applicativeHelper _ (Right f) (Right b) = Right (f b)
 
-parseWorld :: String -> Maybe World
-parseWorld = parseWord' . decode
+infixl 4 <**>
+(<**>) :: Either String (a -> b) -> Either String a -> Either String b
+(<**>) = applicativeHelper "</br>"
+
+eitherOut :: [Either String a] -> Either String [a]
+eitherOut = foldr (\ x -> (<**>) ((:) <$> x)) (Right [])
+
+tryExtract :: JSString -> JSON -> Either String JSON
+tryExtract l (Dict a) = maybe (Left (fromJSStr l ++ " not found"))
+                              Right (lookup l a)
+tryExtract _ j = Left (show j ++ " must be an object")
+
+double :: JSON -> Either String Double
+double (Num d) = Right d
+double j = Left ("Error converting " ++ show j ++ " to double")
+
+integer :: JSON -> Either String Integer
+integer = fmap floor . double
+
+array :: (JSON -> Either String a) -> JSON -> Either String [a]
+array f (Arr d) = eitherOut (map f d)
+array _ j = Left ("Error converting " ++ show j ++ " to array")
+
+mapContent :: JSON -> Either String TileItem
+mapContent mc = (MapContent <$>)
+        (tuple <$> (tryExtract "Columns" mc >>= double) <**>
+                   (tryExtract "Content" mc >>= array
+                    ((tile =<<) . integer)))
+
+worldItem :: JSON -> Either String WorldItem
+worldItem (Dict (("Map", n):xs)) = tuple <$>
+  fmap Map (integer n)  <**>
+  (tryExtract "MapContent" (Dict xs) >>= mapContent)
+worldItem (Dict ((s, _):_)) = Left ("Tile " ++ show s ++ " not found")
+worldItem j = Left (show j ++ "must be object")
+
+world :: JSON -> Either String World
+world (Arr a) = eitherOut (map worldItem a)
+world _ = Left "Top JSON data type must be an array"
+
+parseWorld :: String -> Either String World
+parseWorld = (world =<<) . decodeJSON . toJSStr
 -----------------------------------------------------------------------
