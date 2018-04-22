@@ -53,7 +53,7 @@ blue = color $ RGBA 0 0 255 0.5
 (|*|) (x1, y1) (x2, y2) = (x1 * x2, y1 * y2)
 
 textHelper20px :: Point -> String -> Picture ()
-textHelper20px = ((.) (font "20px italic Monospace")) . text 
+textHelper20px = (font "20px italic Monospace" .) . text
 
 drawShape :: (Picture () -> Picture ()) -> Shape () -> Picture ()
 drawShape col = col . fill
@@ -80,14 +80,14 @@ drawTextBox = do
                           rect_y textRect + rect_h textRect - padding)
   drawShape white $ circle (rect_x textRect + padding,
                             rect_y textRect + padding) padding
-  drawShape white $ circle 
+  drawShape white $ circle
                           (rect_x textRect + rect_w textRect - padding,
                            rect_y textRect + padding) padding
-  drawShape white $ circle 
+  drawShape white $ circle
                           (rect_x textRect + rect_w textRect - padding,
                            rect_y textRect + rect_h textRect - padding)
                           padding
-  drawShape white $ circle 
+  drawShape white $ circle
                           (rect_x textRect + padding,
                            rect_y textRect + rect_h textRect - padding)
                           padding
@@ -108,7 +108,7 @@ parseDrawText' ps [] = (ps, "")
 parseDrawText' ps [[]] = (ps, "")
 parseDrawText' ps ([]:xs) = (ps, unlines (map unwords xs))
 parseDrawText' [] ((w:ws):xs) = parseDrawText' w (ws:xs)
-parseDrawText' ps ((w:ws):xs) 
+parseDrawText' ps ((w:ws):xs)
   | length ps + length w < maxLength = parseDrawText' (ps ++ " " ++ w) (ws:xs)
   | otherwise = (ps, unlines (map unwords ((w:ws):xs)))
     where maxLength = 40
@@ -164,14 +164,13 @@ drawTile' (Event _) = drawShape red . shapeCircle
 drawTile' _ = error "Cannot be drawn from tile info"
 
 drawTile :: Imgs -> Tile -> Rect -> Picture ()
-drawTile imgs tile 
+drawTile imgs tile
   | isJust img = drawScaled (fromJust img)
   | otherwise  = drawTile' tile
   where img = lookup tile imgs
 
 drawTiles :: Imgs -> [(Tile, Rect)] -> Picture ()
-drawTiles imgs tileAndPoints = mapM_ (uncurry (drawTile imgs))
-                                     tileAndPoints
+drawTiles imgs = mapM_ (uncurry (drawTile imgs))
 
 mesh :: Double -> [Rect]
 mesh c = map (\(x, y) -> Rect x y block block) points
@@ -193,7 +192,7 @@ drawPlayer (Just img) = drawScaled img playerRect
                       block block
 
 translateMap :: Double -> Double -> Picture () -> Picture ()
-translateMap x y picture = translate (x_i, y_i) picture
+translateMap x y = translate (x_i, y_i)
   where
     x_i = -(x - (width / block - 1) / 2) * block
     y_i = -(y - (height / block - 1) / 2) * block
@@ -215,7 +214,7 @@ globalPlayer2Point = (0, height - 430)
 
 intToDouble :: Int -> Double
 intToDouble = fromIntegral
-basePoint, charSize :: Point 
+basePoint, charSize :: Point
 basePoint = (90, 90)
 charSize = (4, 4)
 globalMovesPoint1, globalMovesPoint2 :: Int -> Point
@@ -247,11 +246,11 @@ drawHp hp = do
     where textHpDiff = (0, -30)
 
 drawPlayerName :: TileItem -> Picture ()
-drawPlayerName (PlayerItem _ name _) = do
-  textHelper20px localNamePoint name
+drawPlayerName (PlayerItem _ name _) =
+                            textHelper20px localNamePoint name
 drawPlayerName _ = return ()
 
-drawPlayers :: (Bitmap, Bitmap) -> (TileItem, TileItem) -> 
+drawPlayers :: (Bitmap, Bitmap) -> (TileItem, TileItem) ->
                ((Point, Picture ()), (Point, Picture ()))
 drawPlayers (p1Img, p2Img) (pItem1, pItem2) =
   ((globalPlayer1Point, do
@@ -267,7 +266,7 @@ drawPlayers (p1Img, p2Img) (pItem1, pItem2) =
 mergePlayerPictures :: (Picture (), Picture ()) -> Moves-> Picture ()
 mergePlayerPictures (pImg1, pImg2) moves = do
   fullWhite 1
-  translate globalPlayer1Point pImg1 
+  translate globalPlayer1Point pImg1
   translate globalPlayer2Point pImg2
   drawMoves moves
 
@@ -304,10 +303,10 @@ drawMoves moves = do
                         rotate (-pi / 4) $ textHelper20px (0, 0) move4
   where
     weakGray = color $ RGBA 0 0 0 0.05
-    mNames = map (\(name, _, _) -> name) moves  
+    mNames = map (\(name, _, _) -> name) moves
     head' [] = ""
     head' s = head s
-    move1 = head' mNames 
+    move1 = head' mNames
     move2 = head' $ drop 1 mNames
     move3 = head' $ drop 2 mNames
     move4 = head' $ drop 3 mNames
@@ -326,12 +325,12 @@ loadImages ((t, PlayerItem s _ _):xti) = (:) <$> fmap (\img -> (t, img))
 loadImages ((_, _):xti) = loadImages xti
 
 renderStateOnTop :: Picture () -> Point -> IO ()
-renderStateOnTop picture point = do 
+renderStateOnTop picture point = do
   Just c <- getCanvasById "canvas"
-  renderOnTop c $ translate point picture 
+  renderOnTop c $ translate point picture
 
 renderState :: Maybe Bitmap -> Picture () -> Point -> IO ()
-renderState pImg mapPicture (x, y) = do 
+renderState pImg mapPicture (x, y) = do
   Just c <- getCanvasById "canvas"
   render c $ do
     translateMap x y mapPicture

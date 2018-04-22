@@ -9,6 +9,7 @@ import Haste.Events
 
 import Data.IORef
 import Data.List
+import Control.Arrow
 
 type MapState = (MapContent', Point, Point -> IO ())
 type State = (EventItem, MapState, World, Imgs)
@@ -23,7 +24,7 @@ flippedLookup m = lookup m . uncurry (flip zip) . unzip
 startMap :: World -> MapContent'
 startMap [] = error "No start found"
 startMap ((_, MapContent (c, tiles)):xti)
-  | elem Start tiles = (c, tiles)
+  | Start `elem` tiles = (c, tiles)
   | otherwise = startMap xti
 startMap (_:xti) = startMap xti
 
@@ -32,7 +33,7 @@ startPoint (c, tiles) = (x, y)
   where
     (Just i) = elemIndex Start tiles
     x = fromIntegral (mod i (floor c))
-    y = fromInteger (floor ((realToFrac i) / c))
+    y = fromInteger (floor (realToFrac i / c))
 -----------------------------------------------------------------------
 
 -------------------------MovePlayer------------------------------------
@@ -40,7 +41,7 @@ validPoint :: MapContent' -> Point -> Maybe Point
 validPoint (c, tiles) (x, y)
   | x < 0 || y < 0 || x >= c || i >= length tiles = Nothing
   | eqTile (tiles !! i) (Wall 1) = Nothing
-  | otherwise = Just $ (x, y)
+  | otherwise = Just (x, y)
   where i = floor $ x + c * y
 
 updateCoord :: Double -> Double -> Double -> Double
@@ -78,13 +79,13 @@ faderHelper point render fader (f, _) = do
   renderStateOnTop (fader f) (0, 0)
 
 animateHelper :: [(Point -> IO (), [Point])] -> EventItem -> EventItem
-animateHelper = ((.) Animation) . AnimationInfo
+animateHelper = (Animation .) . AnimationInfo
 
 fTInterPoints :: [String] -> Double
 fTInterPoints = fromIntegral . (100*) . length
 
 interPoints :: Double -> Point -> Point -> [Point]
-interPoints l (x1, y1) (x2, y2) = (take (floor l) $ zip
+interPoints l (x1, y1) (x2, y2) = take (floor l) (zip
                                                 (iterate (+xdiff) x1)
                                                 (iterate (+ydiff) y1))
                                                   ++ [(x2, y2)]
@@ -178,15 +179,14 @@ animation stateRef renderList = do
   (mode, _, _, _) <- readIORef stateRef
   case mode of
     EventItemList (NoEvent : _) -> do
-      mapM_ (\(render, (nextPoint:_)) -> render nextPoint) lastPoints
+      mapM_ (\(render, nextPoint:_) -> render nextPoint) lastPoints
       animation stateRef []
     _ -> do
-      mapM_ (\(render, (nextPoint:_)) -> render nextPoint) renderList
+      mapM_ (\(render, nextPoint:_) -> render nextPoint) renderList
       _ <- setTimer (Once 10) (animation stateRef tailPoints)
       return ()
     where
-      tailPoints' = map (\(render, pointList) ->
-                         (render, tail pointList)) renderList
+      tailPoints' = map (second tail) renderList
       tailPoints = filter (\(_, l) -> not (null l)) tailPoints'
       lastPoints = map (\(render, pointList) ->
                         (render, [last pointList])) renderList
@@ -323,7 +323,7 @@ onClick stateRef (MouseData mousePos _ _) = do
   (event', _, _, _) <- readIORef stateRef
   case event' of
     NoEvent -> playerMove stateRef mousePos
-    EventItemList (Fight _ _ _ : _) -> fightMove stateRef mousePos
+    EventItemList (Fight{} : _) -> fightMove stateRef mousePos
     _ -> event stateRef event'
 
 play :: Maybe String -> IO ()
