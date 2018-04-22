@@ -76,154 +76,13 @@ eqTile (Map _) (Map _) = True
 eqTile (Player _) (Player _) = True
 eqTile _ _ = False
 
-tile :: Integer -> Either String Tile
-tile n
-  | n == 0 = Right Start
-  | n >= 10 && n < 20 = Right (Free (n - 9))
-  | n >= 20 && n < 30 = Right (Wall (n - 19))
-  | n >= 30 = Right (Event (n - 29))
-  | otherwise = Left (show n ++ " is not a valid tile number")
+tuple2 :: a -> b -> (a, b)
+tuple2 a b = (a, b)
 
---prepend :: (a, [a]) -> [a]
---prepend (x, xs) = x:xs
---
---replace :: Eq a => a -> a -> [a] -> [a]
---replace _ _ [] = []
---replace pat rep (x:xs)
---  | x == pat = rep : replace pat rep xs
---  | otherwise = x : replace pat rep xs
---
---
------------------------------------Event---------------------------------
---parseLines :: Parser [String]
---parseLines = accept end -# Parser.return [] !
---               line # parseLines >-> prepend
---
---parseEvent :: Parser EventItem
---parseEvent = accept "Text" -# parseLines >->
---             (Text . unlines . (replace emptyLine ""))
---             !
---             accept "FullText" -# parseLines >-> replace emptyLine ""
---             >-> (\content -> FullText (head content)
---                                       (unlines (tail content)))
---             !
---             accept "HTMLText" -# parseLines >->
---             (HTMLText . unlines)
---             !
---             accept "Teleport" -# accept "Map" -# number #-
---             accept "Point" # (number >-> fromInteger) #
---             (number >-> fromInteger) >->
---             (\((n, x), y) -> Teleport (Map n) (x, y))
---             !
---             accept "Fight" -# accept "Start" -# parseEvents #-
---             accept "Player" # number #- accept "Player" # number #-
---             accept "Win" # parseEvents #-
---             accept "Lose" # parseEvents #- accept end >->
---             (\((((start, p1), p2), win), lose) ->
---                        Fight start (Player p1, Player p2) (win, lose))
---
---formatEvents :: [EventItem] -> EventItem
---formatEvents [] = NoEvent
---formatEvents eis = EventItemList eis
---
---parseEvents' :: Parser [EventItem]
---parseEvents' = accept end -# Parser.return [] !
---               parseEvent # parseEvents' >-> prepend
---parseEvents :: Parser EventItem
---parseEvents = parseEvents' >-> formatEvents
--------------------------------------------------------------------------
---
------------------------------------Moves---------------------------------
---parseMove :: Parser (String, Double, EventItem)
---parseMove = accept "Move" -# accept "Name" -# line #-
---            accept "Damage" # number #-
---            accept "Events" # parseEvents >->
---            (\((name, damage), event) ->
---                                    (name, fromIntegral damage, event))
---
---parseMoves' :: Parser Moves
---parseMoves' = accept end -# Parser.return [] !
---               parseMove # parseMoves' >-> prepend
---parseMoves :: Parser Moves
---parseMoves = parseMoves' ? ((<=4) . length)
--------------------------------------------------------------------------
+tuple3 :: a -> b -> c -> (a, b, c)
+tuple3 a b c = (a, b, c)
 
--------------------------------------Map---------------------------------
---validMap :: MapContent' -> Bool
---validMap (c, tiles)
---  | length tiles `mod` floor c /= 0 = False
---  | otherwise = True
---
---mapContent :: Parser [Integer]
---mapContent = accept end -# Parser.return [] !
---             (number # mapContent >-> prepend)
---parseMap :: Parser TileItem
---parseMap = (((number >-> fromInteger) # (mapContent >-> (map tile))) ?
---           validMap) >-> MapContent
--------------------------------------------------------------------------
---
--------------------------------------World-------------------------------
---parseWorldItem :: Parser (Tile, TileItem)
---parseWorldItem = accept "Map" -# number # parseMap >->
---                 (\(n, m) -> (Map n, m))
---                 !
---                 accept "Start" -# accept img -# var # parseEvents >->
---                 (\(image, e) -> (Start, TileItem image e)) !
---                 accept "Start" -# parseEvents >->
---                 (\e -> (Start, TileItem "" e))
---                 !
---                 accept "Free" -# number #- accept img # var >->
---                 (\(n, image) -> (Free n, TileItem image NoEvent)) !
---                 accept "Free" -# number >->
---                 (\n -> (Free n, TileItem "" NoEvent))
---                 !
---                 accept "Wall" -# number #- accept img # var >->
---                 (\(n, image) -> (Wall n, TileItem image NoEvent)) !
---                 accept "Wall" -# number >->
---                 (\n -> (Wall n, TileItem "" NoEvent))
---                 !
---                 accept "Event" -#
---                 number #- accept img # var # parseEvents >->
---                 (\((n, image), e) -> (Event n, TileItem image e)) !
---                 accept "Event" -# number # parseEvents >->
---                 (\(n, e) -> (Event n, TileItem "" e))
---                 !
---                 accept "Player" -# number #- accept img # var #-
---                 accept "Name" # var #-
---                 accept "Moves" # parseMoves #- accept end >->
---                 (\(((n, image), name), moves) ->
---                             (Player n, PlayerItem image name moves)) !
---                 accept "Player" -# number #- accept img # var >->
---                 (\(n, image) ->
---                               (Player n, PlayerItem image "" []))
---
---parseWorldItems :: Parser World
---parseWorldItems = parseWorldItem # parseWorldItems >->
---                  prepend ! Parser.return []
---
---oneStart :: World -> Bool
---oneStart world = count == 1
---  where
---    world' = map snd $ filter ((eqTile (Map 1)) . fst) world
---    count = foldl foldCount 0 world'
---    foldCount s (MapContent (_, tiles)) = s + starts
---      where
---        starts = lengthFilter Start
---        lengthFilter = length . flip filter tiles . (==)
---    foldCount _ (TileItem _ _) = error "Should never happen"
---    foldCount _ (PlayerItem _ _ _) = error "Should never happen"
---
---formatWorld :: Maybe (World, String) -> Maybe World
---formatWorld Nothing = Nothing
---formatWorld (Just (worldItems, ""))
---  | oneStart worldItems = Just worldItems
---  | otherwise = Nothing
---formatWorld (Just (_, _)) = Nothing -- Garbage parsing error
---
-
-tuple :: a -> b -> (a, b)
-tuple a b = (a, b)
-
+-----------------------------------Either---------------------------------
 applicativeHelper :: String -> Either String (a -> b) ->
                                Either String a ->
                                Either String b
@@ -237,8 +96,10 @@ infixl 4 <**>
 (<**>) = applicativeHelper "</br>"
 
 eitherOut :: [Either String a] -> Either String [a]
-eitherOut = foldr (\ x -> (<**>) ((:) <$> x)) (Right [])
+eitherOut = foldr ((<**>) . ((:) <$>)) (Right [])
+-------------------------------------------------------------------------
 
+-----------------------------------JSON---------------------------------
 tryExtract :: JSString -> JSON -> Either String JSON
 tryExtract l (Dict a) = maybe (Left (fromJSStr l ++ " not found"))
                               Right (lookup l a)
@@ -251,21 +112,103 @@ double j = Left ("Error converting " ++ show j ++ " to double")
 integer :: JSON -> Either String Integer
 integer = fmap floor . double
 
+string :: JSON -> Either String String
+string (Str s) = Right (fromJSStr s)
+string j = Left ("Error converting " ++ show j ++ " to string")
+
 array :: (JSON -> Either String a) -> JSON -> Either String [a]
-array f (Arr d) = eitherOut (map f d)
+array f (Arr a) = eitherOut (map f a)
 array _ j = Left ("Error converting " ++ show j ++ " to array")
+-------------------------------------------------------------------------
+
+-----------------------------------Event---------------------------------
+eventItem :: JSON -> Either String EventItem
+eventItem Null = Right NoEvent
+eventItem j = Left ("EventItem " ++ show j ++ " not found")
+
+--events :: JSON -> Either String EventItem
+-------------------------------------------------------------------------
+
+-----------------------------------Moves---------------------------------
+move :: JSON -> Either String (String, Double, EventItem)
+move (Arr [name, damage, events]) = tuple3 <$>
+        string name <**> double damage <**> eventItem events
+move j = Left (show j ++ " could not be converted to player moves," ++
+               " should be on the form ´[name, damage, events]´")
+
+moves :: JSON -> Either String Moves
+moves = array move
+-------------------------------------------------------------------------
+
+-------------------------------------Map---------------------------------
+validMap :: MapContent' -> Either String MapContent'
+validMap (c, tiles)
+  | length tiles `mod` floor c == 0 = Right (c, tiles)
+  | otherwise = Left ("MapContent " ++ show (c, tiles) ++
+                      " should fulfill `length [tiles] % columns == 0`")
+
+mapTile' :: Integer -> Either String Tile
+mapTile' n
+  | n == 0 = Right Start
+  | n >= 10 && n < 20 = Right (Free (n - 9))
+  | n >= 20 && n < 30 = Right (Wall (n - 19))
+  | n >= 30 = Right (Event (n - 29))
+  | otherwise = Left (show n ++ " is not a valid map tile number")
+
+mapTile :: JSON -> Either String Tile
+mapTile = (mapTile' =<<) . integer
 
 mapContent :: JSON -> Either String TileItem
-mapContent mc = (MapContent <$>)
-        (tuple <$> (tryExtract "Columns" mc >>= double) <**>
-                   (tryExtract "Content" mc >>= array
-                    ((tile =<<) . integer)))
+mapContent (Arr [columns, content]) = (MapContent <$>) $ validMap =<<
+        (tuple2 <$> double columns <**> array mapTile content)
+mapContent j = Left (show j ++ " does not match the [double, [double]]"
+                     ++ " format needed for the MapContent")
+------------------------------------------------------------------------
+
+-----------------------------------World--------------------------------
+--oneStart :: World -> Either String World
+--oneStart world = count == 1
+--  where
+--    world' = map snd $ filter ((eqTile (Map 1)) . fst) world
+--    count = foldl foldCount 0 world'
+--    foldCount s (MapContent (_, tiles)) = s + starts
+--      where
+--        starts = lengthFilter Start
+--        lengthFilter = length . flip filter tiles . (==)
+--    foldCount _ _ = error "Should never happen"
+
+tileNumber' :: Integer -> Either String Integer
+tileNumber' n
+  | n > 0 = Right n
+  | otherwise = Left ("Tile number " ++ show n ++
+                      " must be positive")
+tileNumber :: JSON -> Either String Integer
+tileNumber = (tileNumber' =<<) . integer
+
+tile :: String -> JSON -> Either String Tile
+tile "Start" = const (Right Start)
+tile "Free" = fmap Free . tileNumber
+tile "Wall" = fmap Wall . tileNumber
+tile "Event" = fmap Event . tileNumber
+tile "Map" = fmap Map . tileNumber
+tile "Player" = fmap Player . tileNumber
+tile s = const (Left ("Tile " ++ show s ++ " not found"))
 
 worldItem :: JSON -> Either String WorldItem
-worldItem (Dict (("Map", n):xs)) = tuple <$>
-  fmap Map (integer n)  <**>
-  (tryExtract "MapContent" (Dict xs) >>= mapContent)
-worldItem (Dict ((s, _):_)) = Left ("Tile " ++ show s ++ " not found")
+worldItem (Dict (("Map", n):xs)) = tuple2 <$>
+        tile "Map" n <**>
+        (tryExtract "MapContent" (Dict xs) >>= mapContent)
+worldItem (Dict (("Player", n):xs)) = tuple2 <$>
+        tile "Player" n <**>
+        (PlayerItem <$>
+        (tryExtract "Image" (Dict xs) >>= string) <**>
+        (tryExtract "Name" (Dict xs) >>= string) <**>
+        (tryExtract "Moves" (Dict xs) >>= moves))
+worldItem (Dict ((s, n):xs)) = tuple2 <$>
+        tile (fromJSStr s) n <**>
+        (TileItem <$>
+        (tryExtract "Image" (Dict xs) >>= string) <**>
+        (tryExtract "Events" (Dict xs) >>= eventItem))
 worldItem j = Left (show j ++ "must be object")
 
 world :: JSON -> Either String World

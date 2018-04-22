@@ -4,7 +4,7 @@
 		"MapContent" :
 		[
 			3,
-			[0, 10, 11,
+			[ 0, 10, 11,
 			 20, 20, 20,
 			 30, 30, 30]
 		]
@@ -16,6 +16,24 @@
 			4,
 			[12, 10, 11, 20,
 			 20, 20, 30, 30]
+		]
+	},
+	{
+		"Player" : 1,
+		"Image" : "image.png",
+		"Name" : "Master",
+		"Moves" :
+		[
+			[
+				"Move 1",
+				10,
+				null
+			],
+			[
+				"Move 2",
+				20,
+				null
+			]
 		]
 	},
 	{
@@ -44,24 +62,5 @@
 				"Players" : [1, 2]
 			}
 		}
-	},
-	{
-		"Player" : 1,
-		"Image" : "image.png",
-		"Name" : "Master",
-		"Moves" :
-		[
-			[
-				"Move 1",
-				10,
-				null
-			],
-			[
-				"Move 2",
-				20,
-				null
-			]
-		]
 	}
-
 ]

@@ -8,7 +8,7 @@ test.js: World.hs
 	hastec -Wall -o $@ $^
 
 $(OUT): $(MAIN) Game.hs Graphics.hs World.hs Parser.hs
-	hastec -Wall -fno-warn-unused-do-bind -o $@ $^
+	hastec -Wall -o $@ $^
 
 run: $(OUT)
 	xdg-open example/index.html
