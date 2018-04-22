@@ -4,7 +4,7 @@ VPATH = src/
 MAIN = example/Labyrinth.hs
 OUT = example/labyrinth.js
 
-$(OUT): $(MAIN) Game.hs Graphics.hs World.hs Parser.hs
+$(OUT): $(MAIN) Game.hs Graphics.hs World.hs
 	hastec -Wall -o $@ $^
 
 run: $(OUT)

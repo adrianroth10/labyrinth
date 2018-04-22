@@ -182,7 +182,7 @@ animation stateRef renderList = do
       animation stateRef []
     _ -> do
       mapM_ (\(render, (nextPoint:_)) -> render nextPoint) renderList
-      setTimer (Once 10) (animation stateRef tailPoints)
+      _ <- setTimer (Once 10) (animation stateRef tailPoints)
       return ()
     where
       tailPoints' = map (\(render, pointList) ->
@@ -224,8 +224,8 @@ event stateRef (EventItemList (FullText h s : eis)) = do
                                    fadeIn)]
                                  (FullText "" "")
   renderStateOnTop fullText (0, 0)
-  setTimer (Once 3000) $
-    event stateRef $ EventItemList $ [animation1, animation2] ++ eis
+  _ <- setTimer (Once 3000) $
+        event stateRef $ EventItemList $ [animation1, animation2] ++ eis
   return ()
     where
       (p1, p2, fullText) = drawFullText h sDraw
@@ -340,10 +340,10 @@ play (Just worldStr) =
       stateRef <- newIORef (NoEvent,
                             (sMap, sPoint, renderState pImg sPicture),
                             world, imgs)
-      onEvent ce Click $ onClick stateRef
+      _ <- onEvent ce Click $ onClick stateRef
       renderState pImg sPicture sPoint
       event stateRef (eventPoint world sMap sPoint)
-    Left s -> changeOutputHTML ("Parsing error: </br" ++ s)
+    Left s -> changeOutputHTML ("Errors: </br>" ++ s)
 play Nothing = changeOutputHTML "World file not loaded"
 
 changeOutputHTML :: String -> IO ()
