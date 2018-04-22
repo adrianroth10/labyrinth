@@ -11,7 +11,7 @@ module World (World,
               eqTile,
               parseWorld) where
 
-import Haste
+import Haste.Prim
 import Haste.JSON
 
 
@@ -45,21 +45,6 @@ instance Show AnimationInfo where
 instance Eq AnimationInfo where
   (==) _ _ = True
 
-
---main :: IO ()
---main = ajaxRequest GET "test/map.json" noParams play
---
---play :: Maybe String -> IO ()
---play (Just worldStr) =
---  case parseWorld worldStr of
---    Left str -> changeOutputHTML $ "World errors:</br>" ++ str
---    Right w -> changeOutputHTML $ show w
---play Nothing = alert "World file not loaded"
---
---changeOutputHTML :: String -> IO ()
---changeOutputHTML s = do
---  Just e <- elemById "output"
---  setProp e "innerHTML" s
 
 eqTile :: Tile -> Tile -> Bool
 eqTile Start Start = True
@@ -146,7 +131,6 @@ eventItem (j, _) = Left ("EventItem " ++ show j ++ " not found")
 
 formatEvents :: [EventItem] -> EventItem
 formatEvents [] = NoEvent
-formatEvents [x] = x
 formatEvents xs = EventItemList xs
 
 events :: JSON -> Either String EventItem

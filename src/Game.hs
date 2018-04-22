@@ -335,7 +335,7 @@ play (Just worldStr) =
       let sMap = startMap world
       let sPoint = startPoint sMap
       let sPicture = drawMap imgs sMap
-      let pImg = lookup (Player 1) imgs
+      let pImg = Player 1 `lookup` imgs
 
       stateRef <- newIORef (NoEvent,
                             (sMap, sPoint, renderState pImg sPicture),
