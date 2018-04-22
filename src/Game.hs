@@ -2,7 +2,7 @@ module Game (play) where
 
 import World
 import Graphics
- 
+
 import Haste
 import Haste.DOM
 import Haste.Events
@@ -17,7 +17,7 @@ takeWhileOneMore :: (a -> Bool) -> [a] -> [a]
 takeWhileOneMore p = foldr (\x ys -> if p x then x:ys else [x]) []
 
 flippedLookup :: Eq a => a -> [(b, a)] -> Maybe b
-flippedLookup m = lookup m . uncurry (flip zip) . unzip 
+flippedLookup m = lookup m . uncurry (flip zip) . unzip
 
 -------------------------------Init------------------------------------
 startMap :: World -> MapContent'
@@ -59,7 +59,7 @@ updatePoint (x, y) (xS, yS)
 
 eventPoint :: World -> MapContent' -> Point -> EventItem
 eventPoint world (c, tiles) (x, y) = e
-  where 
+  where
     tile = tiles !! floor (x + c * y)
     Just (TileItem _ e) = lookup tile world
 -----------------------------------------------------------------------
@@ -150,7 +150,7 @@ fight world (player1, player2) hp render mousePos end
     newDamage2 = min damage2 (fst hp)
     hpI = hp |+| (0, -newDamage1)
     (hp1, hp2) = hpI |+| (-newDamage2, 0)
-    
+
     animation1 = EventItemList [Text (name1 ++ " used " ++ attack1),
                    e1,
                    animateHelper [(render,
@@ -177,14 +177,14 @@ animation stateRef [] = do
 animation stateRef renderList = do
   (mode, _, _, _) <- readIORef stateRef
   case mode of
-    EventItemList (NoEvent : _) -> do 
+    EventItemList (NoEvent : _) -> do
       mapM_ (\(render, (nextPoint:_)) -> render nextPoint) lastPoints
       animation stateRef []
     _ -> do
       mapM_ (\(render, (nextPoint:_)) -> render nextPoint) renderList
       setTimer (Once 10) (animation stateRef tailPoints)
       return ()
-    where 
+    where
       tailPoints' = map (\(render, pointList) ->
                          (render, tail pointList)) renderList
       tailPoints = filter (\(_, l) -> not (null l)) tailPoints'
@@ -224,7 +224,7 @@ event stateRef (EventItemList (FullText h s : eis)) = do
                                    fadeIn)]
                                  (FullText "" "")
   renderStateOnTop fullText (0, 0)
-  setTimer (Once 3000) $ 
+  setTimer (Once 3000) $
     event stateRef $ EventItemList $ [animation1, animation2] ++ eis
   return ()
     where
@@ -289,7 +289,7 @@ event stateRef (EventItemList (ChangePoint point : eis)) = do
   writeIORef stateRef (event', (m, point, render), world, imgs)
   event stateRef $ EventItemList eis
 
-event stateRef (EventItemList (EventItemList l:xs)) = 
+event stateRef (EventItemList (EventItemList l:xs)) =
                                event stateRef $ EventItemList $ l ++ xs
 
 event _ _ = return ()
@@ -302,7 +302,7 @@ playerMove stateRef mousePos = do
   (_, (m, p, render), world, imgs) <- readIORef stateRef
   changeOutputHTML ""
   case validPoint m (updatePoint mousePos p) of
-    Just p' -> do 
+    Just p' -> do
       writeIORef stateRef (NoEvent, (m, p', render), world, imgs)
       event stateRef $
             EventItemList [animateHelper [(render, interPoints 5 p p')]
@@ -320,16 +320,16 @@ fightMove stateRef mousePos = do
 
 onClick :: IORef State -> MouseData -> IO ()
 onClick stateRef (MouseData mousePos _ _) = do
-  (event', _, _, _) <- readIORef stateRef 
+  (event', _, _, _) <- readIORef stateRef
   case event' of
     NoEvent -> playerMove stateRef mousePos
     EventItemList (Fight _ _ _ : _) -> fightMove stateRef mousePos
     _ -> event stateRef event'
 
 play :: Maybe String -> IO ()
-play (Just worldStr) = do 
+play (Just worldStr) =
   case parseWorld worldStr of
-    Just world -> do
+    Right world -> do
       Just ce <- elemById "canvas"
       imgs <- loadImages world
       let sMap = startMap world
@@ -343,8 +343,8 @@ play (Just worldStr) = do
       onEvent ce Click $ onClick stateRef
       renderState pImg sPicture sPoint
       event stateRef (eventPoint world sMap sPoint)
-    Nothing -> alert "Map parsing error"
-play Nothing = alert "Map file not loaded"
+    Left s -> changeOutputHTML ("Parsing error: </br" ++ s)
+play Nothing = changeOutputHTML "World file not loaded"
 
 changeOutputHTML :: String -> IO ()
 changeOutputHTML s = do

@@ -1,24 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
---module World (World,
-module Main where
---              Tile (Free, Start, Wall, Event, Map, Player),
---              TileItem (MapContent, TileItem, PlayerItem),
---              MapContent',
---              Moves,
---              EventItem (NoEvent, Locked, Text, FullText,
---                         HTMLText, Teleport, Fight, Animation,
---                         ChangePoint, EventItemList),
---              AnimationInfo (AnimationInfo),
---              eqTile,
---              parseWorld) where
+module World (World,
+              Tile (Free, Start, Wall, Event, Map, Player),
+              TileItem (MapContent, TileItem, PlayerItem),
+              MapContent',
+              Moves,
+              EventItem (NoEvent, Locked, Text, FullText,
+                         HTMLText, Teleport, Fight, Animation,
+                         ChangePoint, EventItemList),
+              AnimationInfo (AnimationInfo),
+              eqTile,
+              parseWorld) where
 
---import Parser
 import Haste
-
 import Haste.JSON
-import Haste.Ajax
-import Haste.Prim
-import Haste.DOM
 
 
 type Point = (Double, Double)
@@ -33,12 +27,13 @@ data TileItem = MapContent (Double, [Tile]) |
 type MapContent' = (Double, [Tile])
 type Moves = [(String, Double, EventItem)]
 data EventItem = NoEvent |
-                 Locked |
                  Text String |
                  FullText String String |
                  HTMLText String |
                  Teleport Tile Point |
                  Fight EventItem (Tile, Tile) (EventItem, EventItem) |
+                 -- Non parsable events ->
+                 Locked |
                  Animation AnimationInfo |
                  ChangePoint Point  |
                  EventItemList [EventItem] deriving (Eq, Show)
@@ -51,21 +46,20 @@ instance Eq AnimationInfo where
   (==) _ _ = True
 
 
-
-main :: IO ()
-main = ajaxRequest GET "test/map.json" noParams play
-
-play :: Maybe String -> IO ()
-play (Just worldStr) =
-  case parseWorld worldStr of
-    Left str -> changeOutputHTML $ "World errors:</br>" ++ str
-    Right w -> changeOutputHTML $ show w
-play Nothing = alert "World file not loaded"
-
-changeOutputHTML :: String -> IO ()
-changeOutputHTML s = do
-  Just e <- elemById "output"
-  setProp e "innerHTML" s
+--main :: IO ()
+--main = ajaxRequest GET "test/map.json" noParams play
+--
+--play :: Maybe String -> IO ()
+--play (Just worldStr) =
+--  case parseWorld worldStr of
+--    Left str -> changeOutputHTML $ "World errors:</br>" ++ str
+--    Right w -> changeOutputHTML $ show w
+--play Nothing = alert "World file not loaded"
+--
+--changeOutputHTML :: String -> IO ()
+--changeOutputHTML s = do
+--  Just e <- elemById "output"
+--  setProp e "innerHTML" s
 
 eqTile :: Tile -> Tile -> Bool
 eqTile Start Start = True
@@ -78,9 +72,6 @@ eqTile _ _ = False
 
 tuple2 :: a -> b -> (a, b)
 tuple2 a b = (a, b)
-
-tuple3 :: a -> b -> c -> (a, b, c)
-tuple3 a b c = (a, b, c)
 
 -----------------------------------Either---------------------------------
 applicativeHelper :: String -> Either String (a -> b) ->
@@ -99,7 +90,7 @@ eitherOut :: [Either String a] -> Either String [a]
 eitherOut = foldr ((<**>) . ((:) <$>)) (Right [])
 -------------------------------------------------------------------------
 
------------------------------------JSON---------------------------------
+----------------------------------JSON---------------------------------
 tryExtract :: JSString -> JSON -> Either String JSON
 tryExtract l (Dict a) = maybe (Left (fromJSStr l ++ " not found"))
                               Right (lookup l a)
@@ -116,31 +107,66 @@ string :: JSON -> Either String String
 string (Str s) = Right (fromJSStr s)
 string j = Left ("Error converting " ++ show j ++ " to string")
 
-array :: (JSON -> Either String a) -> JSON -> Either String [a]
+array :: (JSON -> Either String b) -> JSON -> Either String [b]
 array f (Arr a) = eitherOut (map f a)
 array _ j = Left ("Error converting " ++ show j ++ " to array")
--------------------------------------------------------------------------
+-----------------------------------------------------------------------
 
------------------------------------Event---------------------------------
-eventItem :: JSON -> Either String EventItem
-eventItem Null = Right NoEvent
-eventItem j = Left ("EventItem " ++ show j ++ " not found")
+--------------------------------Events---------------------------------
+eventItem :: (JSString, JSON) -> Either String EventItem
+eventItem ("Text", s) = fmap Text (string s)
+eventItem ("FullText", Arr [s1, s2]) =
+    FullText <$> string s1 <**>
+                 string s2
+eventItem ("FullText", j) =
+    Left ("Event key FullText should have the value"
+       ++ " of an array of two strings as `[s1, s2] not "
+       ++ show j)
+eventItem ("HTMLText", s) = fmap HTMLText (string s)
+eventItem ("Teleport", Dict [("Map", n), ("Point", Arr [x, y])]) =
+    Teleport <$> tile "Map" n <**>
+        (tuple2 <$> double x <**> double y)
+eventItem ("Teleport", j) =
+    Left ("Event key Teleport should have the value"
+       ++ " of an object with a Map tile and a point (x, y) not "
+       ++ show j)
+eventItem ("Fight", Dict [("Events", Arr [eIntro, eWin, eLose]),
+                         ("Players", Arr [p1, p2])]) =
+    Fight <$> events eIntro <**>
+        (tuple2 <$> tile "Player" p1 <**> tile "Player" p2) <**>
+        (tuple2 <$> events eWin <**> events eLose)
+eventItem ("Fight", j) =
+    Left ("Event key Fight should have the value"
+       ++ " of an object with a key Events which is an array of"
+       ++ " three event objects [eIntro, eWin, eLose], the key Players with"
+       ++ " the value of an array of integers [p1, p2] of which players"
+       ++ " should be fighting not the recieved: "
+       ++ show j)
+eventItem (j, _) = Left ("EventItem " ++ show j ++ " not found")
 
---events :: JSON -> Either String EventItem
--------------------------------------------------------------------------
+formatEvents :: [EventItem] -> EventItem
+formatEvents [] = NoEvent
+formatEvents [x] = x
+formatEvents xs = EventItemList xs
 
------------------------------------Moves---------------------------------
+events :: JSON -> Either String EventItem
+events Null = Right NoEvent
+events (Dict d) = fmap formatEvents (eitherOut (map eventItem d))
+events j = Left (show j ++ " must be an object")
+-----------------------------------------------------------------------
+
+---------------------------------Moves---------------------------------
 move :: JSON -> Either String (String, Double, EventItem)
-move (Arr [name, damage, events]) = tuple3 <$>
-        string name <**> double damage <**> eventItem events
+move (Arr [name, damage, es]) = (\ a b c -> (a, b, c)) <$>
+        string name <**> double damage <**> events es
 move j = Left (show j ++ " could not be converted to player moves," ++
                " should be on the form ´[name, damage, events]´")
 
 moves :: JSON -> Either String Moves
 moves = array move
--------------------------------------------------------------------------
+-----------------------------------------------------------------------
 
--------------------------------------Map---------------------------------
+-----------------------------------Map---------------------------------
 validMap :: MapContent' -> Either String MapContent'
 validMap (c, tiles)
   | length tiles `mod` floor c == 0 = Right (c, tiles)
@@ -163,9 +189,9 @@ mapContent (Arr [columns, content]) = (MapContent <$>) $ validMap =<<
         (tuple2 <$> double columns <**> array mapTile content)
 mapContent j = Left (show j ++ " does not match the [double, [double]]"
                      ++ " format needed for the MapContent")
-------------------------------------------------------------------------
+-----------------------------------------------------------------------
 
------------------------------------World--------------------------------
+-------------------------------Validate--------------------------------
 --oneStart :: World -> Either String World
 --oneStart world = count == 1
 --  where
@@ -176,7 +202,9 @@ mapContent j = Left (show j ++ " does not match the [double, [double]]"
 --        starts = lengthFilter Start
 --        lengthFilter = length . flip filter tiles . (==)
 --    foldCount _ _ = error "Should never happen"
+-----------------------------------------------------------------------
 
+----------------------------------World--------------------------------
 tileNumber' :: Integer -> Either String Integer
 tileNumber' n
   | n > 0 = Right n
@@ -208,12 +236,11 @@ worldItem (Dict ((s, n):xs)) = tuple2 <$>
         tile (fromJSStr s) n <**>
         (TileItem <$>
         (tryExtract "Image" (Dict xs) >>= string) <**>
-        (tryExtract "Events" (Dict xs) >>= eventItem))
+        (tryExtract "Events" (Dict xs) >>= events))
 worldItem j = Left (show j ++ "must be object")
 
 world :: JSON -> Either String World
-world (Arr a) = eitherOut (map worldItem a)
-world _ = Left "Top JSON data type must be an array"
+world = array worldItem
 
 parseWorld :: String -> Either String World
 parseWorld = (world =<<) . decodeJSON . toJSStr

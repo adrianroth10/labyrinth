@@ -42,7 +42,11 @@
 		"Events" :
 		{
 			"Text" : "Hej på dig",
-			"FullText" : "Hej på dig",
+			"FullText" :
+			[
+				"Hej på dig",
+				"Hall0"
+			],
 			"HTMLText" : "Hej på dig",
 			"Teleport" :
 			{

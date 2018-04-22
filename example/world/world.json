@@ -1,0 +1,168 @@
+[
+	{
+		"Map" : 1,
+		"MapContent" :
+		[
+			8,
+			[10, 10, 10, 10, 10, 10, 10, 31,
+			 10, 20, 20, 20, 20, 20, 20, 20,
+			 34, 10, 10, 34, 10, 10, 20, 33,
+			 10, 20, 20,  0, 20, 10, 20, 10,
+			 10, 20, 20, 20, 20, 10, 20, 10,
+			 34, 10, 10, 10, 10, 34, 10, 10,
+			 10, 20, 20, 20, 20, 20, 20, 20,
+			 10, 10, 10, 10, 10, 10, 10, 30]
+		]
+	},
+	{
+		"Map" : 2,
+		"MapContent" :
+		[
+			3,
+			[32, 10, 10,
+			 10, 20, 10,
+			 10, 20, 10,
+			 10, 20, 10,
+			 10, 20, 10,
+			 10, 20, 10,
+			 10, 20, 10,
+			 10, 10, 35]
+		]
+	},
+	{
+		"Player" : 1,
+		"Image" : "world/Player.png",
+		"Name" : "You",
+		"Moves" : 
+		[
+			[
+				"First",
+				10,
+				{
+					"Text" : "Attack!!!"
+				}
+			],
+			[
+				"Second",
+				20,
+				{
+					"Text" : "Attack!!!"
+				}
+			],
+			[
+				"Third",
+				30,
+				{
+					"Text" : "Attack!!!"
+				}
+			],
+			[
+				"Fourth",
+				40,
+				{
+					"Text" : "Attack!!!"
+				}
+			]
+		]
+	},
+	{
+		"Player" : 2,
+		"Image" : "world/Player.png",
+		"Name" : "Enemy",
+		"Moves" : 
+		[
+			[
+				"First",
+				10,
+				{
+					"Text" : "Attack!!!"
+				}
+			],
+			[
+				"Second",
+				20,
+				{
+					"Text" : "Attack!!!"
+				}
+			]
+		]
+	},
+	{
+		"Start" : null,
+		"Image" : "world/Start.png",
+		"Events" :
+		{
+			"FullText" : 
+			[
+				"Welcome to my game",
+				"This is the Start. Click in the direction you want to move! :)\nThis text should be displayed over the whole page cause it's funny. You will see!!\n\n\n\nLine 1\nLine 2\nLine 3\nLine 4\nLine 5"
+			]
+		}
+	},
+	{
+		"Free" : 1,
+		"Image" : "world/Free.png",
+		"Events" : null
+	},
+	{
+		"Wall" : 1,
+		"Image" : "world/Wall.png",
+		"Events" : null
+	},
+	{
+		"Event" : 1,
+		"Image" : "world/End.png",
+		"Events" :
+		{ "Text" : "This is the End. Though nothing happened :/ What now?" }
+	},
+	{
+		"Event" : 2,
+		"Image" : "world/Event.png",
+		"Events" :
+		{ "Teleport" : { "Map" : 2, "Point" : [0, 0] } }
+	},
+	{
+		"Event" : 3,
+		"Image" : "world/Event.png",
+		"Events" :
+		{ "Teleport" : { "Map" : 1, "Point" : [7, 0] } }
+	},
+	{
+		"Event" : 4,
+		"Image" : "world/Event.png",
+		"Events" :
+		{
+			"Text" : "This is a test, but it is also a text. I promise you it can be both.\nHeeellooo!!\nNow I have definetely written enough!",
+			"HTMLText" : "<p><a target='_blank' href='https://google.se'>important link ;)</a></p>"
+		}
+	},
+	{
+		"Event" : 5,
+		"Image" : "world/Event.png",
+		"Events" :
+		{ "HTMLText" : "<p><a target='_blank' href='https://google.se'>important link ;)</a></p>" }
+	},
+	{
+		"Event" : 6,
+		"Image" : "world/Event.png",
+		"Events" :
+		{
+			"Text" : "Let's fight!!",
+			"Fight" :
+			{
+				"Events" :
+				[
+					{ "Text" : "Go!" },
+					{ "Text" : "You win!" },
+					{ "Text" : "You lose!" }
+				],
+				"Players" : [1, 2]
+			},
+			"FullText" : 
+			[
+				"Testing",
+				"Going on event stuff after the fight to see if it works"
+			]
+		}
+	}
+]
