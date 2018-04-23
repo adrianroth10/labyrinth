@@ -263,7 +263,8 @@ worldItem (Dict ((s, n):xs)) = tuple2 <$>
         tile (fromJSStr s) n <:>
         (TileItem <$>
         (tryExtract "Image" (Dict xs) >>= string) <:>
-        (tryExtract "Events" (Dict xs) >>= events))
+        (either (const (Right Null)) Right
+         (tryExtract "Events" (Dict xs)) >>= events))
 worldItem j = Left (show j ++ "must be object.")
 
 world :: JSON -> Either String World

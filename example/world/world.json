@@ -101,13 +101,11 @@
 	},
 	{
 		"Free" : 1,
-		"Image" : "world/Free.png",
-		"Events" : null
+		"Image" : "world/Free.png"
 	},
 	{
 		"Wall" : 1,
-		"Image" : "world/Wall.png",
-		"Events" : null
+		"Image" : "world/Wall.png"
 	},
 	{
 		"Event" : 1,
