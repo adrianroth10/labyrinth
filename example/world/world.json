@@ -38,30 +38,22 @@
 			[
 				"First",
 				10,
-				{
-					"Text" : "Attack!!!"
-				}
+				{ "Text" : "Attack!!!" }
 			],
 			[
 				"Second",
 				20,
-				{
-					"Text" : "Attack!!!"
-				}
+				{ "Text" : "Attack!!!" }
 			],
 			[
 				"Third",
 				30,
-				{
-					"Text" : "Attack!!!"
-				}
+				{ "Text" : "Attack!!!" }
 			],
 			[
 				"Fourth",
 				40,
-				{
-					"Text" : "Attack!!!"
-				}
+				{ "Text" : "Attack!!!" }
 			]
 		]
 	},
@@ -74,16 +66,12 @@
 			[
 				"First",
 				10,
-				{
-					"Text" : "Attack!!!"
-				}
+				{ "Text" : "Attack!!!" }
 			],
 			[
 				"Second",
 				20,
-				{
-					"Text" : "Attack!!!"
-				}
+				{ "Text" : "Attack!!!" }
 			]
 		]
 	},
@@ -91,13 +79,11 @@
 		"Start" : null,
 		"Image" : "world/Start.png",
 		"Events" :
-		{
-			"FullText" : 
+			{"FullText" : 
 			[
 				"Welcome to my game",
 				"This is the Start. Click in the direction you want to move! :)\nThis text should be displayed over the whole page cause it's funny. You will see!!\n\n\n\nLine 1\nLine 2\nLine 3\nLine 4\nLine 5"
-			]
-		}
+			]}
 	},
 	{
 		"Free" : 1,
@@ -110,29 +96,27 @@
 	{
 		"Event" : 1,
 		"Image" : "world/End.png",
-		"Events" :
-		{ "Text" : "This is the End. Though nothing happened :/ What now?" }
+		"Events" : { "Text" : "This is the End. Though nothing happened :/ What now?" }
 	},
 	{
 		"Event" : 2,
 		"Image" : "world/Event.png",
-		"Events" :
-		{ "Teleport" : { "Map" : 2, "Point" : [0, 0] } }
+		"Events" : { "Teleport" : { "Map" : 2, "Point" : [0, 0] } }
 	},
 	{
 		"Event" : 3,
 		"Image" : "world/Event.png",
-		"Events" :
-		{ "Teleport" : { "Map" : 1, "Point" : [7, 0] } }
+		"Events" : { "Teleport" : { "Map" : 1, "Point" : [7, 0] } }
 	},
 	{
 		"Event" : 4,
 		"Image" : "world/Event.png",
 		"Events" :
-		{
-			"Text" : "This is a test, but it is also a text. I promise you it can be both.\nHeeellooo!!\nNow I have definetely written enough!",
-			"HTMLText" : "<p><a target='_blank' href='https://google.se'>important link ;)</a></p>"
-		}
+		[
+			{ "Text" : "This is a test, but it is also a text. I promise you it can be both.\nHeeellooo!!\nNow I have definetely written enough!" },
+			{ "Text" : "Or not psyche!!" },
+			{ "HTMLText" : "<p><a target='_blank' href='https://google.se'>important link ;)</a></p>" }
+		]
 	},
 	{
 		"Event" : 5,
@@ -144,23 +128,21 @@
 		"Event" : 6,
 		"Image" : "world/Event.png",
 		"Events" :
-		{
-			"Text" : "Let's fight!!",
-			"Fight" :
+		[
+			{ "Text" : "Let's fight!!" },
 			{
-				"Events" :
-				[
-					{ "Text" : "Go!" },
-					{ "Text" : "You win!" },
-					{ "Text" : "You lose!" }
-				],
-				"Players" : [1, 2]
+				"Fight" :
+				{
+					"Events" :
+					[
+						{ "Text" : "Go!" },
+						{ "Text" : "You win!" },
+						{ "Text" : "You lose!" }
+					],
+					"Players" : [1, 2]
+				}
 			},
-			"FullText" : 
-			[
-				"Testing",
-				"Going on event stuff after the fight to see if it works"
-			]
-		}
+			{ "FullText" : [ "Testing", "Going on event stuff after the fight to see if it works" ] }
+		]
 	}
 ]

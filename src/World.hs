@@ -93,36 +93,38 @@ array _ j = Left ("Error converting " ++ show j ++ " to array.")
 -----------------------------------------------------------------------
 
 --------------------------------Events---------------------------------
-eventItem :: (JSString, JSON) -> Either String EventItem
-eventItem ("Text", s) = fmap Text (string s)
-eventItem ("FullText", Arr [s1, s2]) =
+eventItem :: JSON -> Either String EventItem
+eventItem (Dict [("Text", s)]) = fmap Text (string s)
+eventItem (Dict [("FullText", Arr [s1, s2])]) =
     FullText <$> string s1 <:>
                  string s2
-eventItem ("FullText", j) =
+eventItem (Dict [("FullText", j)]) =
     Left ("Event key FullText should have the value"
        ++ " of an array of two strings as `[s1, s2] not "
        ++ show j ++ ".")
-eventItem ("HTMLText", s) = fmap HTMLText (string s)
-eventItem ("Teleport", Dict [("Map", n), ("Point", Arr [x, y])]) =
+eventItem (Dict [("HTMLText", s)]) = fmap HTMLText (string s)
+eventItem (Dict [("Teleport", Dict [("Map", n), ("Point", Arr [x, y])])]) =
     Teleport <$> tile "Map" n <:>
         (tuple2 <$> double x <:> double y)
-eventItem ("Teleport", j) =
+eventItem (Dict [("Teleport", j)]) =
     Left ("Event key Teleport should have the value"
        ++ " of an object with a Map tile and a point (x, y) not "
        ++ show j ++ ".")
-eventItem ("Fight", Dict [("Events", Arr [eIntro, eWin, eLose]),
-                         ("Players", Arr [p1, p2])]) =
+eventItem (Dict [("Fight", Dict [("Events", Arr [eIntro, eWin, eLose]),
+                         ("Players", Arr [p1, p2])])]) =
     Fight <$> events eIntro <:>
         (tuple2 <$> tile "Player" p1 <:> tile "Player" p2) <:>
         (tuple2 <$> events eWin <:> events eLose)
-eventItem ("Fight", j) =
+eventItem (Dict [("Fight", j)]) =
     Left ("Event key Fight should have the value"
        ++ " of an object with a key Events which is an array of"
        ++ " three event objects [eIntro, eWin, eLose], the key Players with"
        ++ " the value of an array of integers [p1, p2] of which players"
        ++ " should be fighting not the recieved: "
        ++ show j ++ ".")
-eventItem (j, _) = Left ("EventItem " ++ show j ++ " not found.")
+eventItem (Dict [(j, _)]) = Left ("EventItem " ++ show j ++ " not found.")
+eventItem j = Left ("EventItem " ++ show j ++ " must be an object"
+                     ++ " with only one entry.")
 
 formatEvents :: [EventItem] -> EventItem
 formatEvents [] = NoEvent
@@ -130,8 +132,9 @@ formatEvents xs = EventItemList xs
 
 events :: JSON -> Either String EventItem
 events Null = Right NoEvent
-events (Dict d) = fmap formatEvents (eitherOut (map eventItem d))
-events j = Left (show j ++ " must be an object.")
+events (Arr es) = fmap formatEvents (array eventItem (Arr es))
+events (Dict e) = fmap (EventItemList . return) (eventItem (Dict e))
+events j = Left (show j ++ " must be either an array or object.")
 -----------------------------------------------------------------------
 
 ---------------------------------Moves---------------------------------
@@ -272,4 +275,6 @@ world = (validateWorld =<<) . array worldItem
 
 parseWorld :: String -> Either String World
 parseWorld = (world =<<) . decodeJSON . toJSStr
+--parseWorld = either Left (Left . show) . decodeJSON . toJSStr
+--parseWorld = Left
 -----------------------------------------------------------------------

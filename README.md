@@ -5,7 +5,4 @@ See the example directory for an example of how it can be used.
 
 It works with Haste version 0.5.5.1 and ghc 7.10.3 (did not work with Haste 0.6.0.0 and same ghc).
 
-Credits to:
-* The Haste Compiler making all this possible
-* Lennart Andersson, previous employee at the Faculty of Science in Lund University.
-Most of the parsing module have been written by him.
+Credits to the Haste Compiler making all this possible

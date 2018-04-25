@@ -330,6 +330,7 @@ play :: Maybe String -> IO ()
 play (Just worldStr) =
   case parseWorld worldStr of
     Right world -> do
+      changeOutputHTML (show world)
       Just ce <- elemById "canvas"
       imgs <- loadImages world
       let sMap = startMap world

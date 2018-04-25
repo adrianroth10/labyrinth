@@ -4,6 +4,6 @@ import Game
 import Haste.Ajax
 
 main :: IO ()
-main = do
+main =
   -- Loading the map
   ajaxRequest GET "world/world.json" noParams play
