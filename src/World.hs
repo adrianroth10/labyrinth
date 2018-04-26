@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module World (World,
-              Tile (Free, Start, Wall, Event, Map, Player),
-              TileItem (MapItem, TileItem, PlayerItem),
+              Tile (Free, Start, Wall, Event, Map, Player, Checkpoint),
+              TileItem (MapItem, TileItem, PlayerItem, CheckpointItem),
               MapItem',
               Moves,
               EventItem (NoEvent, Locked, Text, FullText,
@@ -20,10 +20,12 @@ type World = [WorldItem]
 type WorldItem = (Tile, TileItem)
 data Tile = Start | Free Integer |
             Wall Integer | Event Integer |
-            Map Integer | Player Integer deriving (Eq, Show)
+            Map Integer | Player Integer |
+            Checkpoint Integer deriving (Eq, Show)
 data TileItem = TileItem String EventItem |
                 MapItem (Double, [Tile]) |
-                PlayerItem String String Moves deriving (Eq, Show)
+                PlayerItem String String Moves |
+                CheckpointItem World deriving (Eq, Show)
 type MapItem' = (Double, [Tile])
 type Moves = [(String, Double, EventItem)]
 data EventItem = NoEvent |
@@ -32,6 +34,7 @@ data EventItem = NoEvent |
                  HTMLText String |
                  Teleport Tile Point |
                  Fight EventItem (Tile, Tile) (EventItem, EventItem) |
+                 IncrementCheckpoints |
                  -- Non parsable events ->
                  Locked |
                  Animation AnimationInfo |
@@ -75,6 +78,10 @@ tryExtract :: JSString -> JSON -> Either String JSON
 tryExtract l (Dict a) = maybe (Left (fromJSStr l ++ " not found."))
                               Right (lookup l a)
 tryExtract _ j = Left (show j ++ " must be an object.")
+
+optTryExtract :: JSString -> JSON -> JSON -> Either String JSON
+optTryExtract k d (Dict a) = maybe (Right d) Right (lookup k a)
+optTryExtract _ _ j = Left (show j ++ " must be an object.")
 
 double :: JSON -> Either String Double
 double Null = Right 0
@@ -125,9 +132,12 @@ eventItem (Dict [("Fight", j)]) =
        ++ " the value of an array of integers [p1, p2] of which players"
        ++ " should be fighting not the recieved: "
        ++ show j ++ ".")
+eventItem (Str "Checkpoint") = Right IncrementCheckpoints
+
 eventItem (Dict [(j, _)]) = Left ("EventItem " ++ show j ++ " not found.")
+eventItem (Str s) = Left ("EventItem " ++ show s ++ " not found.")
 eventItem j = Left ("EventItem " ++ show j ++ " must be an object"
-                     ++ " with only one entry.")
+                     ++ " with only one entry or a string.")
 
 formatEvents :: [EventItem] -> EventItem
 formatEvents [] = NoEvent
@@ -253,6 +263,7 @@ tile "Wall" = fmap Wall . tileNumber
 tile "Event" = fmap Event . tileNumber
 tile "Map" = fmap Map . tileNumber
 tile "Player" = fmap Player . tileNumber
+tile "Checkpoint" = fmap Checkpoint . tileNumber
 tile s = const (Left ("Tile " ++ show s ++ " not found."))
 
 worldItem :: JSON -> Either String WorldItem
@@ -262,22 +273,23 @@ worldItem (Dict (("Map", n):xs)) = tuple2 <$>
 worldItem (Dict (("Player", n):xs)) = tuple2 <$>
         tile "Player" n <:>
         (PlayerItem <$>
-        (either (const (Right Null)) Right
-         (tryExtract "Image" (Dict xs)) >>= string) <:>
-        (tryExtract "Name" (Dict xs) >>= string) <:>
-        (tryExtract "Moves" (Dict xs) >>= moves))
+         (optTryExtract "Image" Null (Dict xs) >>= string) <:>
+         (tryExtract "Name" (Dict xs) >>= string) <:>
+         (tryExtract "Moves" (Dict xs) >>= moves))
+worldItem (Dict (("Checkpoint", n):xs)) = tuple2 <$>
+        tile "Checkpoint" n <:>
+        (CheckpointItem <$>
+        (optTryExtract "World" Null (Dict xs) >>= world))
 worldItem (Dict ((s, n):xs)) = tuple2 <$>
         tile (fromJSStr s) n <:>
         (TileItem <$>
-        (either (const (Right Null)) Right
-         (tryExtract "Image" (Dict xs)) >>= string) <:>
-        (either (const (Right Null)) Right
-         (tryExtract "Events" (Dict xs)) >>= events))
+         (optTryExtract "Image" Null (Dict xs) >>= string) <:>
+         (optTryExtract "Events" Null (Dict xs) >>= events))
 worldItem j = Left (show j ++ "must be object.")
 
 world :: JSON -> Either String World
-world = (validateWorld =<<) . array worldItem
+world = array worldItem
 
 parseWorld :: String -> Either String World
-parseWorld = (world =<<) . decodeJSON . toJSStr
+parseWorld = (validateWorld =<<) . (world =<<) . decodeJSON . toJSStr
 -----------------------------------------------------------------------
