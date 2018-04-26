@@ -6,7 +6,7 @@ module World (World,
               Moves,
               EventItem (NoEvent, Locked, Text, FullText,
                          HTMLText, Teleport, Fight, Animation,
-                         ChangePoint, EventItemList),
+                         ChangePoint, EventItemList, IncrementCheckpoints),
               AnimationInfo (AnimationInfo),
               eqTile,
               parseWorld) where
@@ -25,7 +25,7 @@ data Tile = Start | Free Integer |
 data TileItem = TileItem String EventItem |
                 MapItem (Double, [Tile]) |
                 PlayerItem String String Moves |
-                CheckpointItem World deriving (Eq, Show)
+                CheckpointItem World EventItem deriving (Eq, Show)
 type MapItem' = (Double, [Tile])
 type Moves = [(String, Double, EventItem)]
 data EventItem = NoEvent |
@@ -162,12 +162,6 @@ moves = array move
 -----------------------------------------------------------------------
 
 -----------------------------------Map---------------------------------
-validMap :: MapItem' -> Either String MapItem'
-validMap (c, tiles)
-  | length tiles `mod` floor c == 0 = Right (c, tiles)
-  | otherwise = Left ("MapItem " ++ show (c, tiles) ++
-                      " should fulfill `length [tiles] % columns == 0`.")
-
 mapTile' :: Integer -> Either String Tile
 mapTile' n
   | n == 0 = Right Start
@@ -180,7 +174,7 @@ mapTile :: JSON -> Either String Tile
 mapTile = (mapTile' =<<) . integer
 
 mapContent :: JSON -> Either String TileItem
-mapContent (Arr [columns, content]) = (MapItem <$>) $ validMap =<<
+mapContent (Arr [columns, content]) = MapItem <$>
         (tuple2 <$> double columns <:> array mapTile content)
 mapContent j = Left (show j ++ " does not match the [double, [double]]"
                      ++ " format needed for the MapItem.")
@@ -232,12 +226,21 @@ validateMove w (_, _, e) = validateEvents w e
 validateMoves :: World -> Moves -> Maybe Error
 validateMoves w = errorMap (validateMove w)
 
+
+squareMap :: MapItem' -> Maybe Error
+squareMap (c, tiles)
+  | length tiles `mod` floor c == 0 = Nothing
+  | otherwise = Just ("MapItem " ++ show (c, tiles) ++
+                      " should fulfill `length [tiles] % columns == 0`.")
 validateMap :: World -> MapItem' -> Maybe Error
-validateMap w (_, c) = errorMap (validateTile w) c
+validateMap w (d, c) = squareMap (d, c) <**> errorMap (validateTile w) c
 
 validateWorldItem :: World -> WorldItem -> Maybe Error
 validateWorldItem w (Map _, MapItem mc) = validateMap w mc
 validateWorldItem w (Player _, PlayerItem _ _ m) = validateMoves w m
+validateWorldItem w (Checkpoint _, CheckpointItem w' es) =
+                                    errorMap (validateTile (w ++ w') . fst) w'
+                               <**> validateEvents w es
 validateWorldItem w (_, TileItem _ e) = validateEvents w e
 validateWorldItem _ _ = Nothing
 
@@ -273,13 +276,14 @@ worldItem (Dict (("Map", n):xs)) = tuple2 <$>
 worldItem (Dict (("Player", n):xs)) = tuple2 <$>
         tile "Player" n <:>
         (PlayerItem <$>
-         (optTryExtract "Image" Null (Dict xs) >>= string) <:>
+         (tryExtract "Image" (Dict xs) >>= string) <:>
          (tryExtract "Name" (Dict xs) >>= string) <:>
          (tryExtract "Moves" (Dict xs) >>= moves))
 worldItem (Dict (("Checkpoint", n):xs)) = tuple2 <$>
         tile "Checkpoint" n <:>
         (CheckpointItem <$>
-        (optTryExtract "World" Null (Dict xs) >>= world))
+        (optTryExtract "World" Null (Dict xs) >>= world) <:>
+        (optTryExtract "Events" Null (Dict xs) >>= events))
 worldItem (Dict ((s, n):xs)) = tuple2 <$>
         tile (fromJSStr s) n <:>
         (TileItem <$>

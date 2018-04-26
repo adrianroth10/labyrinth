@@ -95,7 +95,10 @@
 	{
 		"Event" : 1,
 		"Image" : "world/End.png",
-		"Events" : { "Text" : "This is the End. Though nothing happened :/ What now?" }
+		"Events" : 
+		[
+			{ "Text" : "This is the End. Though nothing happened :/ What now?" }
+		]
 	},
 	{
 		"Event" : 2,
@@ -114,14 +117,14 @@
 		[
 			{ "Text" : "This is a test, but it is also a text. I promise you it can be both.\nHeeellooo!!\nNow I have definetely written enough!" },
 			{ "Text" : "Or not psyche!!" },
-			{ "HTMLText" : "<p><a target='_blank' href='https://google.se'>important link ;)</a></p>" }
+			{ "HTMLText" : "<p><a target='_blank' href='https://google.se'>important link ;)</a></p>" },
+			"Checkpoint"
 		]
 	},
 	{
 		"Event" : 5,
 		"Image" : "world/Event.png",
-		"Events" :
-		{ "HTMLText" : "<p><a target='_blank' href='https://google.se'>important link ;)</a></p>" }
+		"Events" : { "HTMLText" : "<p><a target='_blank' href='https://google.se'>important link ;)</a></p>" }
 	},
 	{
 		"Event" : 6,
@@ -143,5 +146,16 @@
 			},
 			{ "FullText" : [ "Testing", "Going on event stuff after the fight to see if it works" ] }
 		]
+	},
+	{
+		"Checkpoint" : 1,
+		"World" :
+		[
+			{
+				"Start" : null,
+				"Image" : "world/Start.png"
+			}
+		],
+		"Events" : { "Text" : "This is checkpoint 1" }
 	}
 ]
