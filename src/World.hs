@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module World (World,
               Tile (Free, Start, Wall, Event, Map, Player),
-              TileItem (MapContent, TileItem, PlayerItem),
-              MapContent',
+              TileItem (MapItem, TileItem, PlayerItem),
+              MapItem',
               Moves,
               EventItem (NoEvent, Locked, Text, FullText,
                          HTMLText, Teleport, Fight, Animation,
@@ -22,9 +22,9 @@ data Tile = Start | Free Integer |
             Wall Integer | Event Integer |
             Map Integer | Player Integer deriving (Eq, Show)
 data TileItem = TileItem String EventItem |
-                MapContent (Double, [Tile]) |
+                MapItem (Double, [Tile]) |
                 PlayerItem String String Moves deriving (Eq, Show)
-type MapContent' = (Double, [Tile])
+type MapItem' = (Double, [Tile])
 type Moves = [(String, Double, EventItem)]
 data EventItem = NoEvent |
                  Text String |
@@ -152,10 +152,10 @@ moves = array move
 -----------------------------------------------------------------------
 
 -----------------------------------Map---------------------------------
-validMap :: MapContent' -> Either String MapContent'
+validMap :: MapItem' -> Either String MapItem'
 validMap (c, tiles)
   | length tiles `mod` floor c == 0 = Right (c, tiles)
-  | otherwise = Left ("MapContent " ++ show (c, tiles) ++
+  | otherwise = Left ("MapItem " ++ show (c, tiles) ++
                       " should fulfill `length [tiles] % columns == 0`.")
 
 mapTile' :: Integer -> Either String Tile
@@ -170,10 +170,10 @@ mapTile :: JSON -> Either String Tile
 mapTile = (mapTile' =<<) . integer
 
 mapContent :: JSON -> Either String TileItem
-mapContent (Arr [columns, content]) = (MapContent <$>) $ validMap =<<
+mapContent (Arr [columns, content]) = (MapItem <$>) $ validMap =<<
         (tuple2 <$> double columns <:> array mapTile content)
 mapContent j = Left (show j ++ " does not match the [double, [double]]"
-                     ++ " format needed for the MapContent.")
+                     ++ " format needed for the MapItem.")
 -----------------------------------------------------------------------
 
 -------------------------------Validate--------------------------------
@@ -198,7 +198,7 @@ oneStart w
   where
     world' = map snd $ filter (eqTile (Map 1) . fst) w
     count = foldl foldCount 0 world'
-    foldCount s (MapContent (_, tiles)) = s + starts
+    foldCount s (MapItem (_, tiles)) = s + starts
       where
         starts = lengthFilter Start
         lengthFilter = length . flip filter tiles . (==)
@@ -222,11 +222,11 @@ validateMove w (_, _, e) = validateEvents w e
 validateMoves :: World -> Moves -> Maybe Error
 validateMoves w = errorMap (validateMove w)
 
-validateMap :: World -> MapContent' -> Maybe Error
+validateMap :: World -> MapItem' -> Maybe Error
 validateMap w (_, c) = errorMap (validateTile w) c
 
 validateWorldItem :: World -> WorldItem -> Maybe Error
-validateWorldItem w (Map _, MapContent mc) = validateMap w mc
+validateWorldItem w (Map _, MapItem mc) = validateMap w mc
 validateWorldItem w (Player _, PlayerItem _ _ m) = validateMoves w m
 validateWorldItem w (_, TileItem _ e) = validateEvents w e
 validateWorldItem _ _ = Nothing
@@ -258,7 +258,7 @@ tile s = const (Left ("Tile " ++ show s ++ " not found."))
 worldItem :: JSON -> Either String WorldItem
 worldItem (Dict (("Map", n):xs)) = tuple2 <$>
         tile "Map" n <:>
-        (tryExtract "MapContent" (Dict xs) >>= mapContent)
+        (tryExtract "MapItem" (Dict xs) >>= mapContent)
 worldItem (Dict (("Player", n):xs)) = tuple2 <$>
         tile "Player" n <:>
         (PlayerItem <$>

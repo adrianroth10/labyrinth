@@ -179,7 +179,7 @@ mesh c = map (\(x, y) -> Rect x y block block) points
     coordinates = [(x, y) | y <- [0..], x <- [0..c - 1]]
     points = map (pointMul (block, block)) coordinates
 
-drawMap :: Imgs -> MapContent' -> Picture ()
+drawMap :: Imgs -> MapItem' -> Picture ()
 drawMap imgs (c, tiles) = drawTiles imgs $ zip tiles (mesh c)
 -----------------------------------------------------------------------
 

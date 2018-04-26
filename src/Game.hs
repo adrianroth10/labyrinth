@@ -11,7 +11,7 @@ import Data.IORef
 import Data.List
 import Control.Arrow
 
-type MapState = (MapContent', Point, Point -> IO ())
+type MapState = (MapItem', Point, Point -> IO ())
 type State = (EventItem, MapState, World, Imgs)
 
 takeWhileOneMore :: (a -> Bool) -> [a] -> [a]
@@ -21,14 +21,14 @@ flippedLookup :: Eq a => a -> [(b, a)] -> Maybe b
 flippedLookup m = lookup m . uncurry (flip zip) . unzip
 
 -------------------------------Init------------------------------------
-startMap :: World -> MapContent'
+startMap :: World -> MapItem'
 startMap [] = error "No start found"
-startMap ((_, MapContent (c, tiles)):xti)
+startMap ((_, MapItem (c, tiles)):xti)
   | Start `elem` tiles = (c, tiles)
   | otherwise = startMap xti
 startMap (_:xti) = startMap xti
 
-startPoint :: MapContent' -> Point
+startPoint :: MapItem' -> Point
 startPoint (c, tiles) = (x, y)
   where
     (Just i) = elemIndex Start tiles
@@ -37,7 +37,7 @@ startPoint (c, tiles) = (x, y)
 -----------------------------------------------------------------------
 
 -------------------------MovePlayer------------------------------------
-validPoint :: MapContent' -> Point -> Maybe Point
+validPoint :: MapItem' -> Point -> Maybe Point
 validPoint (c, tiles) (x, y)
   | x < 0 || y < 0 || x >= c || i >= length tiles = Nothing
   | eqTile (tiles !! i) (Wall 1) = Nothing
@@ -58,7 +58,7 @@ updatePoint (x, y) (xS, yS)
     xT = fromIntegral x - width / 2
     yT = fromIntegral y - height / 2
 
-eventPoint :: World -> MapContent' -> Point -> EventItem
+eventPoint :: World -> MapItem' -> Point -> EventItem
 eventPoint world (c, tiles) (x, y) = e
   where
     tile = tiles !! floor (x + c * y)
@@ -240,7 +240,7 @@ event stateRef (EventItemList (HTMLText s : eis)) = do
 
 event stateRef (EventItemList (Teleport m p' : eis)) = do
   (_, (_, p, render), world, imgs) <- readIORef stateRef
-  let Just (MapContent newMap) = lookup m world
+  let Just (MapItem newMap) = lookup m world
   let newPicture = drawMap imgs newMap
   let pImg = lookup (Player 1) imgs
   writeIORef stateRef (NoEvent,
@@ -257,7 +257,7 @@ event stateRef (EventItemList (Fight Locked players end : eis)) = do
                        m, world, imgs)
 event stateRef (EventItemList (Fight e1 (player1, player2) (win, lose) : eis)) = do
   (_, (m, p, lastRender), world, imgs) <- readIORef stateRef
-  let Just mapTile = flippedLookup (MapContent m) world
+  let Just mapTile = flippedLookup (MapItem m) world
   let teleport = Teleport mapTile p
 
   let Just (PlayerItem _ _ moves) = lookup player1 world
