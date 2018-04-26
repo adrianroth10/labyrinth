@@ -6,7 +6,8 @@ module World (World,
               Moves,
               EventItem (NoEvent, Locked, Text, FullText,
                          HTMLText, Teleport, Fight, Animation,
-                         ChangePoint, EventItemList, IncrementCheckpoints),
+                         ChangePoint, EventItemList,
+                         IncrementCheckpoints, SetCheckpoint),
               AnimationInfo (AnimationInfo),
               eqTile,
               parseWorld) where
@@ -35,6 +36,7 @@ data EventItem = NoEvent |
                  Teleport Tile Point |
                  Fight EventItem (Tile, Tile) (EventItem, EventItem) |
                  IncrementCheckpoints |
+                 SetCheckpoint Integer |
                  -- Non parsable events ->
                  Locked |
                  Animation AnimationInfo |
@@ -133,7 +135,7 @@ eventItem (Dict [("Fight", j)]) =
        ++ " should be fighting not the recieved: "
        ++ show j ++ ".")
 eventItem (Str "Checkpoint") = Right IncrementCheckpoints
-
+eventItem (Dict [("SetCheckpoint", n)]) = fmap SetCheckpoint (integer n)
 eventItem (Dict [(j, _)]) = Left ("EventItem " ++ show j ++ " not found.")
 eventItem (Str s) = Left ("EventItem " ++ show s ++ " not found.")
 eventItem j = Left ("EventItem " ++ show j ++ " must be an object"

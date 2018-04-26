@@ -22,8 +22,6 @@ flippedLookup :: Eq a => a -> [(b, a)] -> Maybe b
 flippedLookup m = lookup m . uncurry (flip zip) . unzip
 
 replaceLookups :: Eq a => [(a, b)] -> [(a, b)] -> [(a, b)]
---replaceLookups [] w = w
---replaceLookups (x:xs) w = replaceLookups xs (x:filter ((fst x /=) . fst) w)
 replaceLookups xs w = foldl (\ acc x -> x : filter ((fst x /=) . fst) acc) w xs
 
 
@@ -198,6 +196,18 @@ animation stateRef renderList = do
       lastPoints = map (\(render, pointList) ->
                         (render, [last pointList])) renderList
 
+changeCheckpoint :: IORef State -> [EventItem] -> (Integer -> Integer) -> IO ()
+changeCheckpoint stateRef eis f = do
+  (_, (m, point, render), world, _, Checkpoint n) <- readIORef stateRef
+  let CheckpointItem newWorldItems es = fromMaybe (CheckpointItem [] NoEvent) $
+                                      lookup (Checkpoint (f n)) world
+  let Just mapTile = flippedLookup (MapItem m) world
+  let newWorld = replaceLookups newWorldItems world
+  imgs <- loadImages newWorld
+  writeIORef stateRef (NoEvent, (m, point, render),
+                       newWorld, imgs, Checkpoint (f n))
+  event stateRef $ EventItemList $ [Teleport mapTile point, es] ++ eis
+
 -------------------------------Events----------------------------------
 event :: IORef State -> EventItem ->  IO ()
 event _ (EventItemList []) = return ()
@@ -286,16 +296,11 @@ event stateRef (EventItemList (Fight e1 (player1, player2) (win, lose) : eis)) =
                (EventItemList [win, teleport],
                 EventItemList [lose, teleport])] ++ eis
 
-event stateRef (EventItemList (IncrementCheckpoints : eis)) = do
-  (_, (m, point, render), world, _, Checkpoint n) <- readIORef stateRef
-  let CheckpointItem newWorldItems es = fromMaybe (CheckpointItem [] NoEvent) $
-                                      lookup (Checkpoint (n + 1)) world
-  let Just mapTile = flippedLookup (MapItem m) world
-  let newWorld = replaceLookups newWorldItems world
-  imgs <- loadImages newWorld
-  writeIORef stateRef (NoEvent, (m, point, render),
-                       newWorld, imgs, Checkpoint (n + 1))
-  event stateRef $ EventItemList $ [Teleport mapTile point, es] ++ eis
+event stateRef (EventItemList (IncrementCheckpoints : eis)) =
+                                      changeCheckpoint stateRef eis (+1)
+
+event stateRef (EventItemList (SetCheckpoint n : eis)) =
+                                      changeCheckpoint stateRef eis (const n)
 
 event stateRef (EventItemList (Animation (AnimationInfo renderList event') : eis)) = do
   (_, m, world, imgs, check) <- readIORef stateRef
