@@ -21,8 +21,8 @@ type WorldItem = (Tile, TileItem)
 data Tile = Start | Free Integer |
             Wall Integer | Event Integer |
             Map Integer | Player Integer deriving (Eq, Show)
-data TileItem = MapContent (Double, [Tile]) |
-                TileItem String EventItem |
+data TileItem = TileItem String EventItem |
+                MapContent (Double, [Tile]) |
                 PlayerItem String String Moves deriving (Eq, Show)
 type MapContent' = (Double, [Tile])
 type Moves = [(String, Double, EventItem)]
@@ -77,6 +77,7 @@ tryExtract l (Dict a) = maybe (Left (fromJSStr l ++ " not found."))
 tryExtract _ j = Left (show j ++ " must be an object.")
 
 double :: JSON -> Either String Double
+double Null = Right 0
 double (Num d) = Right d
 double j = Left ("Error converting " ++ show j ++ " to double.")
 
@@ -84,10 +85,12 @@ integer :: JSON -> Either String Integer
 integer = fmap floor . double
 
 string :: JSON -> Either String String
+string Null = Right ""
 string (Str s) = Right (fromJSStr s)
 string j = Left ("Error converting " ++ show j ++ " to string.")
 
 array :: (JSON -> Either String b) -> JSON -> Either String [b]
+array _ Null = Right []
 array f (Arr a) = eitherOut (map f a)
 array _ j = Left ("Error converting " ++ show j ++ " to array.")
 -----------------------------------------------------------------------
@@ -259,13 +262,15 @@ worldItem (Dict (("Map", n):xs)) = tuple2 <$>
 worldItem (Dict (("Player", n):xs)) = tuple2 <$>
         tile "Player" n <:>
         (PlayerItem <$>
-        (tryExtract "Image" (Dict xs) >>= string) <:>
+        (either (const (Right Null)) Right
+         (tryExtract "Image" (Dict xs)) >>= string) <:>
         (tryExtract "Name" (Dict xs) >>= string) <:>
         (tryExtract "Moves" (Dict xs) >>= moves))
 worldItem (Dict ((s, n):xs)) = tuple2 <$>
         tile (fromJSStr s) n <:>
         (TileItem <$>
-        (tryExtract "Image" (Dict xs) >>= string) <:>
+        (either (const (Right Null)) Right
+         (tryExtract "Image" (Dict xs)) >>= string) <:>
         (either (const (Right Null)) Right
          (tryExtract "Events" (Dict xs)) >>= events))
 worldItem j = Left (show j ++ "must be object.")
@@ -275,6 +280,4 @@ world = (validateWorld =<<) . array worldItem
 
 parseWorld :: String -> Either String World
 parseWorld = (world =<<) . decodeJSON . toJSStr
---parseWorld = either Left (Left . show) . decodeJSON . toJSStr
---parseWorld = Left
 -----------------------------------------------------------------------

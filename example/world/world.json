@@ -77,7 +77,6 @@
 	},
 	{
 		"Start" : null,
-		"Image" : "world/Start.png",
 		"Events" :
 			{"FullText" : 
 			[

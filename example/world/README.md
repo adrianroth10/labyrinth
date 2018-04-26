@@ -1,42 +1,97 @@
-# Format of map file
-I have tried to make it as easy and intuitive as possible to make your own map.
+# Format of world file
+I have tried to make it as easy and intuitive as possible to make your own world.
 
-First row: number of rows in the labyrinth
-
-Second row: number of columns in the labyrinth
-
-Then follows a space and newline separated part with integral numbers describing the matrix that will be the labyrinth.
-For example the start can look as follows for a labyrinth with 2 rows and 2 columns:
-
+The world consists of `[WorldItem]` where each `WorldItem` is a `(Tile, TileItem)`.
+There are 6 different tiles:
+```Haskell
+data Tile = Start | Free Integer |
+            Wall Integer | Event Integer |
+            Map Integer | Player Integer deriving (Eq, Show)
 ```
-2
-2
-0 1
-2 3
+Then each tile has a corresponding `TileItem`:
+```Haskell
+data TileItem = TileItem String EventItem |
+		MapContent (Double, [Tile]) |
+                PlayerItem String String Moves deriving (Eq, Show)
 ```
+`TileItem` is for the first 4 tiles and the others are self explanatory.
 
-Each integral number describes a Tile where there are 5 different types which have corresponding different number(s):
-  - Start 0
-  - End 1
-  - Free 10-19
-  - Wall 20-29
-  - Event 20-
-
-The different tiles have different numbers for the possibility of different background images for the same type of tile.
-This will hopefully give a cooler map!
-
-After the matrix building up the map there are possibilities to input images for each tile number used in the matrix.
-First the image paths are set up to sort of variables (only letters are allowed in the name) using the syntax
-```
-IMG VARNAME PATH
+A `WorldItem` for the tiles with `TileItem` `TileItem` is defined as one `JSON` object as follows (within parenthesis means optional):
+```JSON
+{
+	"Tile" : n (Integer),
+	("Image" : "Path"),
+	("Events" : { [EventItems] }
+}
 ```
 
-Then the images are connected to the tiles where Start, End and Event tiles also can add HTML code which will be displayed when the player stands on that tile.
-This will have the syntax for example an event with NUMBER:
+A `WorldItem` for the tiles with `TileItem` `MapContent` is defined as:
+```JSON
+{
+	"Map" : n (Integer),
+	"MapContent" : 
+	[
+		Columns (Integer),
+		Content ([Integer])
+	]
+}
 ```
-Event NUMBER IMG VARNAME
-HTML_CODE
-END
+The content integers (`n`) will correspond to tiles as:
+```Haskell
+mapTile' :: Integer -> Either String Tile
+mapTile' n
+  | n == 0 = Right Start
+  | n >= 10 && n < 20 = Right (Free (n - 9))
+  | n >= 20 && n < 30 = Right (Wall (n - 19))
+  | n >= 30 = Right (Event (n - 29))
+  | otherwise = Left (show n ++ " is not a valid map tile number.")
 ```
 
-Otherwise the example map should contain all the functionality of the map parsing!
+A `WorldItem` for the tiles with `TileItem` `PlayerItem` is defined as:
+```JSON
+{
+	"Player" : n (Integer),
+	"Image" : "Path",
+	"Name" : "String",
+	"Moves" : [Move]
+}
+```
+One move is a JSON object as:
+```JSON
+{
+	"Name" : "String",
+	"Damage" : d (Double),
+	"Events" : [EventItem]
+}
+```
+
+At last the `EventItems` have been mentioned, they are defined by 
+```Haskell
+data EventItem = NoEvent |
+                 Text String |
+                 FullText String String |
+                 HTMLText String |
+                 Teleport Tile Point |
+                 Fight EventItem (Tile, Tile) (EventItem, EventItem) |
+```
+These events are inspired by Pokèmon as a `Text` event is just text at the bottom, `FullText` looks like sliding credits, `HTMLText` is the possibility to input HTML code in a div element with id "output" in the HTML file running the Javascript, `Teleport` can move the player between different maps, and `Fight` is more or less a Pokèmon between two player tiles. They are defined in the world file as either a list of `EventItem`s or just one. An example of each event is shown below. `null` is the `NoEvent`:
+```JSON
+[
+	null,
+	{ "Text" : "String", },
+	{ "FullText" : ["String" (title), "String"] },
+	{ "HTMLText" : String },
+	{ "Teleport" : { "Map" : n, "Point" [x (Integer),y (Integer)] } },
+	{ 
+		"Fight" :
+		{
+			[
+				[Eventitem] (Intro events),
+				[Eventitem] (Win events),
+				[Eventitem] (Lose events)
+			]
+		}
+		"Players" : [Player1 (Integer), Player2 (Integer)]
+	}
+]
+```
