@@ -196,13 +196,14 @@ animation stateRef renderList = do
       lastPoints = map (\(render, pointList) ->
                         (render, [last pointList])) renderList
 
-changeCheckpoint :: IORef State -> [EventItem] -> (Integer -> Integer) -> IO ()
-changeCheckpoint stateRef eis f = do
+changeCheckpoint :: IORef State -> [EventItem] -> World ->
+                    (Integer -> Integer) -> IO ()
+changeCheckpoint stateRef eis w f = do
   (_, (m, point, render), world, _, Checkpoint n) <- readIORef stateRef
   let CheckpointItem newWorldItems es = fromMaybe (CheckpointItem [] NoEvent) $
                                       lookup (Checkpoint (f n)) world
   let Just mapTile = flippedLookup (MapItem m) world
-  let newWorld = replaceLookups newWorldItems world
+  let newWorld = replaceLookups newWorldItems $ replaceLookups w world
   imgs <- loadImages newWorld
   writeIORef stateRef (NoEvent, (m, point, render),
                        newWorld, imgs, Checkpoint (f n))
@@ -296,11 +297,11 @@ event stateRef (EventItemList (Fight e1 (player1, player2) (win, lose) : eis)) =
                (EventItemList [win, teleport],
                 EventItemList [lose, teleport])] ++ eis
 
-event stateRef (EventItemList (IncrementCheckpoints : eis)) =
-                                      changeCheckpoint stateRef eis (+1)
+event stateRef (EventItemList (IncrementCheckpoints w : eis)) =
+                                      changeCheckpoint stateRef eis w (+1)
 
 event stateRef (EventItemList (SetCheckpoint n : eis)) =
-                                      changeCheckpoint stateRef eis (const n)
+                                      changeCheckpoint stateRef eis [] (const n)
 
 event stateRef (EventItemList (Animation (AnimationInfo renderList event') : eis)) = do
   (_, m, world, imgs, check) <- readIORef stateRef

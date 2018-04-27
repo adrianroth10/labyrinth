@@ -35,7 +35,7 @@ data EventItem = NoEvent |
                  HTMLText String |
                  Teleport Tile Point |
                  Fight EventItem (Tile, Tile) (EventItem, EventItem) |
-                 IncrementCheckpoints |
+                 IncrementCheckpoints World |
                  SetCheckpoint Integer |
                  -- Non parsable events ->
                  Locked |
@@ -134,12 +134,11 @@ eventItem (Dict [("Fight", j)]) =
        ++ " the value of an array of integers [p1, p2] of which players"
        ++ " should be fighting not the recieved: "
        ++ show j ++ ".")
-eventItem (Str "Checkpoint") = Right IncrementCheckpoints
+eventItem (Dict [("Checkpoint", w)]) = fmap IncrementCheckpoints (world w)
 eventItem (Dict [("SetCheckpoint", n)]) = fmap SetCheckpoint (integer n)
 eventItem (Dict [(j, _)]) = Left ("EventItem " ++ show j ++ " not found.")
-eventItem (Str s) = Left ("EventItem " ++ show s ++ " not found.")
 eventItem j = Left ("EventItem " ++ show j ++ " must be an object"
-                     ++ " with only one entry or a string.")
+                     ++ " with only one entry.")
 
 formatEvents :: [EventItem] -> EventItem
 formatEvents [] = NoEvent
@@ -220,6 +219,8 @@ validateEvents w (Teleport t _) = validateTile w t
 validateEvents w (Fight ei (p1, p2) (ew, el)) =
     validateTile w p1 <**> validateTile w p2 <**>
     validateEvents w (EventItemList [ei, ew, el])
+validateEvents w (IncrementCheckpoints w') =
+                                errorMap (validateTile (w ++ w') . fst) w'
 validateEvents w (EventItemList xs) = errorMap (validateEvents w) xs
 validateEvents _ _ = Nothing
 
