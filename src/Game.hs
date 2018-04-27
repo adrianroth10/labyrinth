@@ -169,6 +169,32 @@ fight world (player1, player2) hp render mousePos end
                    ChangePoint (hp1, hp2)]
 
 -----------------------------------------------------------------------
+--
+-----------------------------Checkpoint--------------------------------
+rFirstEventCheckpoint :: [EventItem] -> [EventItem]
+rFirstEventCheckpoint [] = []
+rFirstEventCheckpoint (IncrementCheckpoints _ _:es) = es
+rFirstEventCheckpoint (e:es) = e : rFirstEventCheckpoint es
+
+rEventCheckpoint :: EventItem -> EventItem
+rEventCheckpoint (IncrementCheckpoints _ _) = NoEvent
+rEventCheckpoint (EventItemList es)  = EventItemList $
+                                               rFirstEventCheckpoint es
+rEventCheckpoint e = e
+
+rMovesCheckpoint :: Moves -> Moves
+rMovesCheckpoint = map (\(a, b, c) -> (a, b, rEventCheckpoint c))
+
+removeCheckpoint :: Tile -> World -> World
+removeCheckpoint NoTile w = w
+removeCheckpoint (Map _) w = w
+removeCheckpoint (Player n) w = replaceLookups
+        [(Player n, PlayerItem img name (rMovesCheckpoint ms))] w
+    where Just (PlayerItem img name ms) = lookup (Player n) w
+removeCheckpoint t w = replaceLookups
+        [(t, TileItem img (rEventCheckpoint es))] w
+    where Just (TileItem img es) = lookup t w
+
 
 
 -----------------------------------------------------------------------
@@ -196,14 +222,15 @@ animation stateRef renderList = do
       lastPoints = map (\(render, pointList) ->
                         (render, [last pointList])) renderList
 
-changeCheckpoint :: IORef State -> [EventItem] -> World ->
+changeCheckpoint :: IORef State -> [EventItem] -> World -> Tile ->
                     (Integer -> Integer) -> IO ()
-changeCheckpoint stateRef eis w f = do
+changeCheckpoint stateRef eis w t f = do
   (_, (m, point, render), world, _, Checkpoint n) <- readIORef stateRef
   let CheckpointItem newWorldItems es = fromMaybe (CheckpointItem [] NoEvent) $
                                       lookup (Checkpoint (f n)) world
   let Just mapTile = flippedLookup (MapItem m) world
-  let newWorld = replaceLookups newWorldItems $ replaceLookups w world
+  let newWorld = replaceLookups newWorldItems $ replaceLookups w $
+                    removeCheckpoint t world
   imgs <- loadImages newWorld
   writeIORef stateRef (NoEvent, (m, point, render),
                        newWorld, imgs, Checkpoint (f n))
@@ -297,11 +324,11 @@ event stateRef (EventItemList (Fight e1 (player1, player2) (win, lose) : eis)) =
                (EventItemList [win, teleport],
                 EventItemList [lose, teleport])] ++ eis
 
-event stateRef (EventItemList (IncrementCheckpoints w : eis)) =
-                                      changeCheckpoint stateRef eis w (+1)
+event stateRef (EventItemList (IncrementCheckpoints t w : eis)) =
+                                      changeCheckpoint stateRef eis w t (+1)
 
 event stateRef (EventItemList (SetCheckpoint n : eis)) =
-                                      changeCheckpoint stateRef eis [] (const n)
+                                      changeCheckpoint stateRef eis [] NoTile (const n)
 
 event stateRef (EventItemList (Animation (AnimationInfo renderList event') : eis)) = do
   (_, m, world, imgs, check) <- readIORef stateRef

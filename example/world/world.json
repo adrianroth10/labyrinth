@@ -118,22 +118,7 @@
 			{ "Text" : "This is a test, but it is also a text. I promise you it can be both.\nHeeellooo!!\nNow I have definetely written enough!" },
 			{ "Text" : "Or not psyche!!" },
 			{ "HTMLText" : "<p><a target='_blank' href='https://google.se'>important link ;)</a></p>" },
-			{ "Checkpoint" :
-				[
-					{
-						"Event" : 4,
-						"Image" : "world/Event.png",
-						"Events" :
-						[
-							{ "Text" : "This is a test, but it is also a text. I promise you it can be both.\nHeeellooo!!\nNow I have definetely written enough!" },
-							{ "Text" : "Or not psyche!!" },
-							{ "HTMLText" : "<p><a target='_blank' href='https://google.se'>important link ;)</a></p>" }
-						]
-					}
-				]
-			}
-
-
+			{ "Checkpoint" : [] }
 		]
 	},
 	{

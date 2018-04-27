@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module World (World,
-              Tile (Free, Start, Wall, Event, Map, Player, Checkpoint),
+              Tile (Free, Start, Wall, Event, Map, Player, Checkpoint, NoTile),
               TileItem (MapItem, TileItem, PlayerItem, CheckpointItem),
               MapItem',
               Moves,
@@ -22,7 +22,7 @@ type WorldItem = (Tile, TileItem)
 data Tile = Start | Free Integer |
             Wall Integer | Event Integer |
             Map Integer | Player Integer |
-            Checkpoint Integer deriving (Eq, Show)
+            Checkpoint Integer | NoTile deriving (Eq, Show)
 data TileItem = TileItem String EventItem |
                 MapItem (Double, [Tile]) |
                 PlayerItem String String Moves |
@@ -35,7 +35,7 @@ data EventItem = NoEvent |
                  HTMLText String |
                  Teleport Tile Point |
                  Fight EventItem (Tile, Tile) (EventItem, EventItem) |
-                 IncrementCheckpoints World |
+                 IncrementCheckpoints Tile World |
                  SetCheckpoint Integer |
                  -- Non parsable events ->
                  Locked |
@@ -64,106 +64,118 @@ tuple2 :: a -> b -> (a, b)
 tuple2 a b = (a, b)
 
 -----------------------------------Either---------------------------------
+type Error = String
 infixl 4 <:>
-(<:>) :: Either String (a -> b) -> Either String a -> Either String b
-(<:>) (Left a) (Left b) = Left (a ++ "</br>" ++ b)
+errorSeparation :: String
+errorSeparation = "</br>"
+
+(<:>) :: Either Error (a -> b) -> Either Error a -> Either Error b
+(<:>) (Left a) (Left b) = Left (a ++ errorSeparation ++ b)
 (<:>) (Right _) (Left b) = Left b
 (<:>) (Left a) (Right _) = Left a
 (<:>) (Right f) (Right b) = Right (f b)
 
-eitherOut :: [Either String a] -> Either String [a]
+infixl 1 =<<<
+(=<<<) :: (a -> b -> Either Error c) -> Either Error a -> Either Error b
+      -> Either Error c
+(=<<<) _ (Left a) (Left b) = Left (a ++ errorSeparation ++ b)
+(=<<<) _ (Right _) (Left b) = Left b
+(=<<<) _ (Left a) (Right _) = Left a
+(=<<<) f (Right a) (Right b) = f a b
+
+eitherOut :: [Either Error a] -> Either Error [a]
 eitherOut = foldr ((<:>) . ((:) <$>)) (Right [])
 -------------------------------------------------------------------------
 
 ----------------------------------JSON---------------------------------
-tryExtract :: JSString -> JSON -> Either String JSON
+tryExtract :: JSString -> JSON -> Either Error JSON
 tryExtract l (Dict a) = maybe (Left (fromJSStr l ++ " not found."))
                               Right (lookup l a)
 tryExtract _ j = Left (show j ++ " must be an object.")
 
-optTryExtract :: JSString -> JSON -> JSON -> Either String JSON
+optTryExtract :: JSString -> JSON -> JSON -> Either Error JSON
 optTryExtract k d (Dict a) = maybe (Right d) Right (lookup k a)
 optTryExtract _ _ j = Left (show j ++ " must be an object.")
 
-double :: JSON -> Either String Double
+double :: JSON -> Either Error Double
 double Null = Right 0
 double (Num d) = Right d
 double j = Left ("Error converting " ++ show j ++ " to double.")
 
-integer :: JSON -> Either String Integer
+integer :: JSON -> Either Error Integer
 integer = fmap floor . double
 
-string :: JSON -> Either String String
+string :: JSON -> Either Error String
 string Null = Right ""
 string (Str s) = Right (fromJSStr s)
 string j = Left ("Error converting " ++ show j ++ " to string.")
 
-array :: (JSON -> Either String b) -> JSON -> Either String [b]
+array :: (JSON -> Either Error b) -> JSON -> Either Error [b]
 array _ Null = Right []
 array f (Arr a) = eitherOut (map f a)
 array _ j = Left ("Error converting " ++ show j ++ " to array.")
 -----------------------------------------------------------------------
 
 --------------------------------Events---------------------------------
-eventItem :: JSON -> Either String EventItem
-eventItem (Dict [("Text", s)]) = fmap Text (string s)
-eventItem (Dict [("FullText", Arr [s1, s2])]) =
+eventItem :: Tile -> JSON -> Either Error EventItem
+eventItem _ (Dict [("Text", s)]) = Text <$> string s
+eventItem _ (Dict [("FullText", Arr [s1, s2])]) =
     FullText <$> string s1 <:>
                  string s2
-eventItem (Dict [("FullText", j)]) =
+eventItem _ (Dict [("FullText", j)]) =
     Left ("Event key FullText should have the value"
        ++ " of an array of two strings as `[s1, s2] not "
        ++ show j ++ ".")
-eventItem (Dict [("HTMLText", s)]) = fmap HTMLText (string s)
-eventItem (Dict [("Teleport", Dict [("Map", n), ("Point", Arr [x, y])])]) =
+eventItem _ (Dict [("HTMLText", s)]) = HTMLText <$> string s
+eventItem _ (Dict [("Teleport", Dict [("Map", n), ("Point", Arr [x, y])])]) =
     Teleport <$> tile "Map" n <:>
         (tuple2 <$> double x <:> double y)
-eventItem (Dict [("Teleport", j)]) =
+eventItem _ (Dict [("Teleport", j)]) =
     Left ("Event key Teleport should have the value"
        ++ " of an object with a Map tile and a point (x, y) not "
        ++ show j ++ ".")
-eventItem (Dict [("Fight", Dict [("Events", Arr [eIntro, eWin, eLose]),
+eventItem t (Dict [("Fight", Dict [("Events", Arr [eIntro, eWin, eLose]),
                          ("Players", Arr [p1, p2])])]) =
-    Fight <$> events eIntro <:>
+    Fight <$> events t eIntro <:>
         (tuple2 <$> tile "Player" p1 <:> tile "Player" p2) <:>
-        (tuple2 <$> events eWin <:> events eLose)
-eventItem (Dict [("Fight", j)]) =
+        (tuple2 <$> events t eWin <:> events t eLose)
+eventItem _ (Dict [("Fight", j)]) =
     Left ("Event key Fight should have the value"
        ++ " of an object with a key Events which is an array of"
        ++ " three event objects [eIntro, eWin, eLose], the key Players with"
        ++ " the value of an array of integers [p1, p2] of which players"
        ++ " should be fighting not the recieved: "
        ++ show j ++ ".")
-eventItem (Dict [("Checkpoint", w)]) = fmap IncrementCheckpoints (world w)
-eventItem (Dict [("SetCheckpoint", n)]) = fmap SetCheckpoint (integer n)
-eventItem (Dict [(j, _)]) = Left ("EventItem " ++ show j ++ " not found.")
-eventItem j = Left ("EventItem " ++ show j ++ " must be an object"
+eventItem t (Dict [("Checkpoint", w)]) = IncrementCheckpoints t <$> world w
+eventItem _ (Dict [("SetCheckpoint", n)]) = SetCheckpoint <$> integer n
+eventItem _ (Dict [(j, _)]) = Left ("EventItem " ++ show j ++ " not found.")
+eventItem _ j = Left ("EventItem " ++ show j ++ " must be an object"
                      ++ " with only one entry.")
 
 formatEvents :: [EventItem] -> EventItem
 formatEvents [] = NoEvent
 formatEvents xs = EventItemList xs
 
-events :: JSON -> Either String EventItem
-events Null = Right NoEvent
-events (Arr es) = fmap formatEvents (array eventItem (Arr es))
-events (Dict e) = fmap (EventItemList . return) (eventItem (Dict e))
-events j = Left (show j ++ " must be either an array or object.")
+events :: Tile -> JSON -> Either Error EventItem
+events _ Null = Right NoEvent
+events t (Arr es) = formatEvents <$> array (eventItem t) (Arr es)
+events t (Dict e) = (EventItemList . return) <$> eventItem t (Dict e)
+events _ j = Left (show j ++ " must be either an array or object.")
 -----------------------------------------------------------------------
 
 ---------------------------------Moves---------------------------------
-move :: JSON -> Either String (String, Double, EventItem)
-move (Arr [name, damage, es]) = (\ a b c -> (a, b, c)) <$>
-        string name <:> double damage <:> events es
-move j = Left (show j ++ " could not be converted to player-moves," ++
+move :: Tile -> JSON -> Either Error (String, Double, EventItem)
+move t (Arr [name, damage, es]) = (\ a b c -> (a, b, c)) <$>
+        string name <:> double damage <:> events t es
+move _ j = Left (show j ++ " could not be converted to player-moves," ++
                " should be on the form ´[name, damage, events]´.")
 
-moves :: JSON -> Either String Moves
-moves = array move
+moves :: Tile -> JSON -> Either Error Moves
+moves = array . move
 -----------------------------------------------------------------------
 
 -----------------------------------Map---------------------------------
-mapTile' :: Integer -> Either String Tile
+mapTile' :: Integer -> Either Error Tile
 mapTile' n
   | n == 0 = Right Start
   | n >= 10 && n < 20 = Right (Free (n - 9))
@@ -171,10 +183,10 @@ mapTile' n
   | n >= 30 = Right (Event (n - 29))
   | otherwise = Left (show n ++ " is not a valid map tile number.")
 
-mapTile :: JSON -> Either String Tile
+mapTile :: JSON -> Either Error Tile
 mapTile = (mapTile' =<<) . integer
 
-mapContent :: JSON -> Either String TileItem
+mapContent :: JSON -> Either Error TileItem
 mapContent (Arr [columns, content]) = MapItem <$>
         (tuple2 <$> double columns <:> array mapTile content)
 mapContent j = Left (show j ++ " does not match the [double, [double]]"
@@ -182,7 +194,6 @@ mapContent j = Left (show j ++ " does not match the [double, [double]]"
 -----------------------------------------------------------------------
 
 -------------------------------Validate--------------------------------
-type Error = String
 infixl 4 <**>
 (<**>) :: Maybe Error -> Maybe Error -> Maybe Error
 (<**>) (Just a) (Just b) = Just (a ++ "</br>" ++ b)
@@ -219,7 +230,7 @@ validateEvents w (Teleport t _) = validateTile w t
 validateEvents w (Fight ei (p1, p2) (ew, el)) =
     validateTile w p1 <**> validateTile w p2 <**>
     validateEvents w (EventItemList [ei, ew, el])
-validateEvents w (IncrementCheckpoints w') =
+validateEvents w (IncrementCheckpoints _ w') =
                                 errorMap (validateTile (w ++ w') . fst) w'
 validateEvents w (EventItemList xs) = errorMap (validateEvents w) xs
 validateEvents _ _ = Nothing
@@ -247,22 +258,22 @@ validateWorldItem w (Checkpoint _, CheckpointItem w' es) =
 validateWorldItem w (_, TileItem _ e) = validateEvents w e
 validateWorldItem _ _ = Nothing
 
-validateWorld :: World -> Either String World
+validateWorld :: World -> Either Error World
 validateWorld w = maybe (Right w) Left $
                                 oneStart w <**>
                                 errorMap (validateWorldItem w) w
 -----------------------------------------------------------------------
 
 ----------------------------------World--------------------------------
-tileNumber' :: Integer -> Either String Integer
+tileNumber' :: Integer -> Either Error Integer
 tileNumber' n
   | n > 0 = Right n
   | otherwise = Left ("Tile number " ++ show n ++
                       " must be positive.")
-tileNumber :: JSON -> Either String Integer
+tileNumber :: JSON -> Either Error Integer
 tileNumber = (tileNumber' =<<) . integer
 
-tile :: String -> JSON -> Either String Tile
+tile :: String -> JSON -> Either Error Tile
 tile "Start" = const (Right Start)
 tile "Free" = fmap Free . tileNumber
 tile "Wall" = fmap Wall . tileNumber
@@ -272,31 +283,34 @@ tile "Player" = fmap Player . tileNumber
 tile "Checkpoint" = fmap Checkpoint . tileNumber
 tile s = const (Left ("Tile " ++ show s ++ " not found."))
 
-worldItem :: JSON -> Either String WorldItem
+worldItem :: JSON -> Either Error WorldItem
 worldItem (Dict (("Map", n):xs)) = tuple2 <$>
         tile "Map" n <:>
         (tryExtract "MapItem" (Dict xs) >>= mapContent)
 worldItem (Dict (("Player", n):xs)) = tuple2 <$>
-        tile "Player" n <:>
+        t <:>
         (PlayerItem <$>
          (tryExtract "Image" (Dict xs) >>= string) <:>
          (tryExtract "Name" (Dict xs) >>= string) <:>
-         (tryExtract "Moves" (Dict xs) >>= moves))
+         (moves =<<< t) (tryExtract "Moves" (Dict xs)))
+          where t = tile "Player" n
 worldItem (Dict (("Checkpoint", n):xs)) = tuple2 <$>
-        tile "Checkpoint" n <:>
+        t <:>
         (CheckpointItem <$>
-        (optTryExtract "World" Null (Dict xs) >>= world) <:>
-        (optTryExtract "Events" Null (Dict xs) >>= events))
+         (optTryExtract "World" Null (Dict xs) >>= world) <:>
+         (events =<<< t) (optTryExtract "Events" Null (Dict xs)))
+          where t = tile "Checkpoint" n
 worldItem (Dict ((s, n):xs)) = tuple2 <$>
-        tile (fromJSStr s) n <:>
+        t <:>
         (TileItem <$>
          (optTryExtract "Image" Null (Dict xs) >>= string) <:>
-         (optTryExtract "Events" Null (Dict xs) >>= events))
+         (events =<<< t) (optTryExtract "Events" Null (Dict xs)))
+          where t = tile (fromJSStr s) n
 worldItem j = Left (show j ++ "must be object.")
 
-world :: JSON -> Either String World
+world :: JSON -> Either Error World
 world = array worldItem
 
-parseWorld :: String -> Either String World
+parseWorld :: String -> Either Error World
 parseWorld = (validateWorld =<<) . (world =<<) . decodeJSON . toJSStr
 -----------------------------------------------------------------------
