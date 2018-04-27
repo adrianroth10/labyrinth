@@ -22,11 +22,13 @@ type WorldItem = (Tile, TileItem)
 data Tile = Start | Free Integer |
             Wall Integer | Event Integer |
             Map Integer | Player Integer |
-            Checkpoint Integer | NoTile deriving (Eq, Show)
+            Checkpoint Integer |
+            NoTile deriving (Eq, Show)
 data TileItem = TileItem String EventItem |
                 MapItem (Double, [Tile]) |
                 PlayerItem String String Moves |
-                CheckpointItem World EventItem deriving (Eq, Show)
+                CheckpointItem World EventItem
+                deriving (Eq, Show)
 type MapItem' = (Double, [Tile])
 type Moves = [(String, Double, EventItem)]
 data EventItem = NoEvent |
